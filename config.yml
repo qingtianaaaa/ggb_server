@@ -1,0 +1,28 @@
+server:
+  port: 8080
+  mode: "debug"  #debug、prod、dev
+
+db:
+  host: "localhost"
+  port: 3306
+  user: "root"
+  password: "Ai_edu2025"
+  name: "ggb_gen"
+  max_idle_conns: 10
+  max_open_conns: 100
+
+jwt:
+  secret: "secret",
+  expire: 30 #min
+
+log:
+  level: "info" # debug, info, warn, error, fatal
+  file_path: "/var/glog/my_app/app.glog"
+  enable_console_output: true
+
+ai_model:
+  deepseek:
+    apiKey: "sk-9320e048d0d04f37a99eaa4d984bbe86"
+  stepfun:
+    apiKey: "4qNfUujEuOkN0WWP9TNHRDfedWM6KWVE8KnErfKRicGBfj9JWkKA4QYktcqLPr4Ch"
+
