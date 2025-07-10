@@ -78,7 +78,9 @@ func (g ChatCompletionClient) ChatCompletion() (Content, error) {
 				Content: g.Message,
 			},
 		},
-		Stream: false, //非流式
+		TopP:      1,
+		MaxTokens: 1024,
+		Stream:    false, //非流式
 	}
 	payload, err := json.Marshal(chatCompletionReq)
 	if err != nil {
@@ -248,9 +250,8 @@ func (g ChatCompletionClient) ChatCompletionStream() (Content, error) {
 					Content: content,
 				}
 				jsonBody, _ := json.Marshal(formatContent)
-				log.Println(string(jsonBody))
 				writeSSEEvent(g.StreamWriter, g.Flusher, string(jsonBody))
-				fullResponse.WriteString(string(jsonBody))
+				fullResponse.WriteString(content)
 			}
 		}
 	}

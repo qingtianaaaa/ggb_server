@@ -126,6 +126,7 @@ func (p Process) doClassification(imgUrl string) (map[string]string, error) {
 		log.Printf("type: %v, step: %v, content: %v\n", res.Type, res.Step, res.Content)
 		return nil, err
 	}
+	log.Println("classify content: ", res.Content)
 
 	classifyRes, err := p.seekForClassificationRes(res)
 	if err != nil {
@@ -135,16 +136,16 @@ func (p Process) doClassification(imgUrl string) (map[string]string, error) {
 }
 
 func (p Process) seekForClassificationRes(content aiModule.Content) (map[string]string, error) {
-	jsonRegex := regexp.MustCompile(`(?s)(\{[^]*?\})|(\[[^]*?\])`)
-	matches := jsonRegex.FindAllString(content.Content, -1) // -1 表示查找所有匹配项
-
+	re := regexp.MustCompile(`(?s)\{\s*"题目"\s*:\s*"[^"]*"\s*,\s*"类型"\s*:\s*"[^"]*"\s*\}`)
+	matches := re.FindString(content.Content)
 	if len(matches) == 0 {
 		log.Println("classification result: ", matches)
 		return nil, errors.New("classification result error")
 	}
+	log.Println("match result: ", matches)
 
 	res := map[string]string{}
-	err := json.Unmarshal([]byte(content.Content), &res)
+	err := json.Unmarshal([]byte(matches), &res)
 	if err != nil {
 		log.Println("Error unmarshalling classification result error: ", err)
 		return nil, err
@@ -227,6 +228,7 @@ func (p Process) doExtract(classify map[string]string, imgUrl string) (string, e
 		log.Printf("type: %v, step: %v, content: %v\n", res.Type, res.Step, res.Content)
 		return "", err
 	}
+	log.Println("extract content: ", res.Content)
 
 	return res.Content, nil
 }
@@ -246,6 +248,7 @@ func (p Process) doGenGGB(elements string) (string, error) {
 		log.Printf("type: %v, step: %v, content: %v\n", res.Type, res.Step, res.Content)
 		return "", err
 	}
+	log.Println("gen ggb content: ", res.Content)
 	return res.Content, nil
 }
 
@@ -261,5 +264,6 @@ func (p Process) doGenHTML(command string) (string, error) {
 		log.Printf("type: %v, step: %v, content: %v\n", res.Type, res.Step, res.Content)
 		return "", err
 	}
+	log.Println("gen html content: ", res.Content)
 	return res.Content, nil
 }

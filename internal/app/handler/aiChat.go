@@ -7,7 +7,6 @@ import (
 	"ggb_server/internal/utils"
 	"github.com/gin-gonic/gin"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -24,8 +23,8 @@ func (a AiChat) Upload(c *gin.Context) {
 	}
 	fileExt := filepath.Ext(file.Filename)
 	newFileName := fmt.Sprintf("%d%s", time.Now().UnixNano(), fileExt)
-	currentDir, _ := os.Getwd()
-	savePath := filepath.Join(currentDir, "static/upload", newFileName)
+	rootPath, _ := utils.FindRootPath()
+	savePath := filepath.Join(rootPath, "static/upload", newFileName)
 	if err := c.SaveUploadedFile(file, savePath); err != nil {
 		c.JSON(500, gin.H{
 			"message": err.Error(),

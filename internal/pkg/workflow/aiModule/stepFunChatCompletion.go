@@ -236,7 +236,7 @@ func (s StepFunChatCompletion) ChatCompletionStream() (Content, error) {
 				}
 				jsonBody, _ := json.Marshal(formatContent)
 				writeSSEEvent(s.StreamWriter, s.Flusher, string(jsonBody))
-				fullResponse.WriteString(string(jsonBody))
+				fullResponse.WriteString(reasoningContent)
 			}
 		}
 	}
