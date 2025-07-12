@@ -50,7 +50,7 @@ func (s StepFunChatCompletion) ChatCompletion() (Content, error) {
 		}, err
 	}
 
-	chatCompletionReq := schema.DeepSeekRequest{
+	chatCompletionReq := schema.StepFunChatCompletionRequest{
 		Model: string(s.Model),
 		Messages: []schema.Message{
 			schema.Message{
@@ -74,7 +74,7 @@ func (s StepFunChatCompletion) ChatCompletion() (Content, error) {
 		}, err
 	}
 	client := &http.Client{}
-	req, err := http.NewRequest(http.MethodPost, consts.DeepSeekChatCompletionUrl, bytes.NewBuffer(payload))
+	req, err := http.NewRequest(http.MethodPost, consts.StepFunChatCompletionUrl, bytes.NewBuffer(payload))
 	if err != nil {
 		log.Println("new request error:", err)
 		return Content{
@@ -84,7 +84,7 @@ func (s StepFunChatCompletion) ChatCompletion() (Content, error) {
 		}, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+consts.DeepSeekApiKey)
+	req.Header.Set("Authorization", "Bearer "+consts.StepFunApiKey)
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Print("send request error:", err)
@@ -106,13 +106,13 @@ func (s StepFunChatCompletion) ChatCompletion() (Content, error) {
 	}
 
 	reader, _ := io.ReadAll(resp.Body)
-	response := schema.DeepSeekResponse{}
+	response := schema.StepFunChatCompletionResponse{}
 	fullResponse := strings.Builder{}
 	_ = json.Unmarshal(reader, &response)
 	if len(response.Choices) > 0 {
-		content := response.Choices[0].Message.Content
-		fullResponse.WriteString(content)
-		writeSSEEvent(s.StreamWriter, s.Flusher, content) //也以流式形式返回前端
+		outputContent := response.Choices[0].Message.Content
+		fullResponse.WriteString(outputContent)
+		writeSSEEvent(s.StreamWriter, s.Flusher, outputContent) //也以流式形式返回前端
 	}
 	return Content{
 		Type:    OutputContent,
@@ -173,7 +173,7 @@ func (s StepFunChatCompletion) ChatCompletionStream() (Content, error) {
 		}, err
 	}
 
-	req, err := http.NewRequest(http.MethodPost, consts.StepFunUrl, bytes.NewBuffer(reqBody))
+	req, err := http.NewRequest(http.MethodPost, consts.StepFunChatCompletionUrl, bytes.NewBuffer(reqBody))
 	if err != nil {
 		return Content{
 			Type:    Error,
@@ -236,7 +236,20 @@ func (s StepFunChatCompletion) ChatCompletionStream() (Content, error) {
 				}
 				jsonBody, _ := json.Marshal(formatContent)
 				writeSSEEvent(s.StreamWriter, s.Flusher, string(jsonBody))
-				fullResponse.WriteString(reasoningContent)
+				//fullResponse.WriteString(reasoningContent)
+			}
+
+			if len(chunk.Choices) > 0 && chunk.Choices[0].Delta.Content != "" {
+				output := chunk.Choices[0].Delta.Content
+				formatContent := Content{
+					Type:    OutputContent,
+					Step:    s.ProcessStep,
+					Content: output,
+				}
+				log.Printf("format content: %+v\n", output)
+				jsonBody, _ := json.Marshal(formatContent)
+				writeSSEEvent(s.StreamWriter, s.Flusher, string(jsonBody))
+				fullResponse.WriteString(output)
 			}
 		}
 	}

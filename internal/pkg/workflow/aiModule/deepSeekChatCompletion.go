@@ -22,7 +22,6 @@ type ChatCompletionClient struct {
 	Model        consts.DeepSeekModel
 	ProcessStep  consts.ProcessStep
 	Message      string
-	IsStream     bool
 	Flusher      http.Flusher
 	StreamWriter io.Writer
 	ContentType  Type
@@ -237,6 +236,7 @@ func (g ChatCompletionClient) ChatCompletionStream() (Content, error) {
 					Step:    g.ProcessStep,
 					Content: reasoningContent,
 				}
+				fmt.Print(reasoningContent)
 				jsonBody, _ := json.Marshal(formatContent)
 				writeSSEEvent(g.StreamWriter, g.Flusher, string(jsonBody))
 				//fullResponse.WriteString(string(jsonBody))
@@ -264,6 +264,9 @@ func (g ChatCompletionClient) ChatCompletionStream() (Content, error) {
 }
 
 func writeSSEEvent(w io.Writer, flusher http.Flusher, data string) {
+	if flusher == nil || w == nil {
+		return
+	}
 	fmt.Fprintf(w, "data: %s\n\n", data)
 	flusher.Flush()
 }

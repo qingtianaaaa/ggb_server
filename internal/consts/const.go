@@ -126,7 +126,7 @@ var (
 
 const (
 	DeepSeekChatCompletionUrl string = "https://api.deepseek.com/chat/completions"
-	StepFunUrl                string = "https://api.stepfun.com/v1"
+	StepFunChatCompletionUrl  string = "https://api.stepfun.com/v1/chat/completions"
 
 	UnknownStep ProcessStep = "unknown"
 	Classify    ProcessStep = "classify"
@@ -147,7 +147,7 @@ const (
 
 	DeepSeekReasoner DeepSeekModel = "deepseek-reasoner"
 	DeepSeekChat     DeepSeekModel = "deepseek-chat"
-	StepFuncReasoner StepFunModel  = "step-r1-v-mini"
+	StepFuncChat     StepFunModel  = "step-1o-turbo-vision"
 
 	G2D         ProblemType = "2D平面几何"
 	G3D         ProblemType = "3D平面几何"
