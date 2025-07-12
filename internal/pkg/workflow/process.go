@@ -212,7 +212,7 @@ func (p Process) doExtract(classify map[string]string, imgUrl string) (string, e
 			mapping["imgUrl"] = imgBase64
 		}
 
-		mapping["model"] = string(consts.StepFuncReasoner)
+		mapping["model"] = string(consts.StepFuncChat)
 		client = aiModule.NewChatCompletionClient[*aiModule.StepFunChatCompletion](mapping, p.Flusher, p.W)
 
 		res, err := client.ChatCompletion()
