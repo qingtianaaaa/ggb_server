@@ -3,12 +3,13 @@ package handler
 import (
 	"fmt"
 	"ggb_server/internal/app/schema"
+	"ggb_server/internal/config"
 	"ggb_server/internal/pkg/workflow"
 	"ggb_server/internal/utils"
 	"github.com/gin-gonic/gin"
+	"log"
 	"net/http"
 	"path/filepath"
-	"strings"
 	"time"
 )
 
@@ -24,15 +25,18 @@ func (a AiChat) Upload(c *gin.Context) {
 	fileExt := filepath.Ext(file.Filename)
 	newFileName := fmt.Sprintf("%d%s", time.Now().UnixNano(), fileExt)
 	rootPath, _ := utils.FindRootPath()
-	savePath := filepath.Join(rootPath, "static/upload", newFileName)
+	savePath := filepath.Join(rootPath, config.Cfg.Static.Path, newFileName)
 	if err := c.SaveUploadedFile(file, savePath); err != nil {
 		c.JSON(500, gin.H{
 			"message": err.Error(),
 		})
 	}
-	imageUrl := fmt.Sprintf("http://localhost:8080/static/upload/%s", newFileName)
+	protocol := "http"
+	if c.Request.TLS != nil {
+		protocol = "https"
+	}
 	c.JSON(200, gin.H{
-		"imageUrl": imageUrl,
+		"imageUrl": fmt.Sprintf("%s://%s/%s/%s", protocol, c.Request.Host, config.Cfg.Static.Path, newFileName),
 	})
 }
 
@@ -57,12 +61,9 @@ func (a AiChat) Chat(c *gin.Context) {
 	flusher := c.Writer.(http.Flusher)
 	w := c.Writer
 	c.Writer.WriteHeader(http.StatusOK)
-	processor := workflow.NewProcess(chatRequest.Message, flusher, w)
-	rootPath, _ := utils.FindRootPath()
-	err := processor.StartProcess(strings.Replace(chatRequest.ImageUrl, "http://localhost:8080", rootPath, 1))
+	processor := workflow.NewProcess(chatRequest.Message, chatRequest.ImageUrl, flusher, w, c.Request.Context())
+	err := processor.StartProcess()
 	if err != nil {
-		c.JSON(500, gin.H{
-			"message": err.Error(),
-		})
+		log.Println("[error] occurred when processing: ", err)
 	}
 }

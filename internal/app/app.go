@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"ggb_server/internal/app/api"
+	"ggb_server/internal/config"
 	"ggb_server/internal/pkg/glog"
 	"ggb_server/internal/utils"
 	"github.com/gin-gonic/gin"
@@ -18,7 +19,6 @@ import (
 
 func Start() {
 	rootPath, _ := utils.FindRootPath()
-	log.Println("rootPath:", rootPath)
 	glog.InitLogger(filepath.Join(rootPath, "logs/app.log"))
 
 	gin.SetMode(gin.DebugMode)
@@ -28,8 +28,11 @@ func Start() {
 	api.AddPath(e)
 
 	srv := &http.Server{
-		Addr:    ":8080",
-		Handler: e,
+		Addr:              ":" + config.Cfg.Server.Port,
+		Handler:           e,
+		ReadHeaderTimeout: 30 * time.Minute,
+		WriteTimeout:      30 * time.Minute,
+		IdleTimeout:       30 * time.Minute,
 	}
 
 	go func() {
@@ -37,7 +40,7 @@ func Start() {
 			log.Fatalf("listen: %s\n", err)
 		}
 	}()
-	log.Println("ggb server started on :8080")
+	log.Println("ggb server started on :" + config.Cfg.Server.Port)
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)

@@ -2,6 +2,7 @@ package api
 
 import (
 	"ggb_server/internal/app/handler"
+	"ggb_server/internal/config"
 	"ggb_server/internal/middleware"
 	"ggb_server/internal/utils"
 	"github.com/gin-gonic/gin"
@@ -15,12 +16,12 @@ var (
 
 func AddPath(e *gin.Engine) {
 	rootPath, _ := utils.FindRootPath()
-	uploadDir := filepath.Join(rootPath, "static", "upload")
+	uploadDir := filepath.Join(rootPath, config.Cfg.Static.Path)
 	err := os.MkdirAll(uploadDir, os.ModePerm)
 	if err != nil {
 		return
 	}
-	e.Static("/static/upload", uploadDir)
+	e.Static(config.Cfg.Static.Path, uploadDir)
 
 	e.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok"})

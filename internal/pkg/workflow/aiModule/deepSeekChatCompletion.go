@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"reflect"
 	"strings"
+	"time"
 )
 
 type ChatCompletionClient struct {
@@ -28,9 +29,8 @@ type ChatCompletionClient struct {
 }
 
 func NewChatCompletionClient[T ChatCompletionInterface](mapping map[string]string, flusher http.Flusher, w io.Writer) T {
-	var instance T
-
-	elemType := reflect.TypeOf(instance).Elem()
+	var zero T
+	elemType := reflect.TypeOf(zero).Elem()
 	clientValue := reflect.New(elemType)
 
 	if flusher != nil {
@@ -60,8 +60,12 @@ func NewChatCompletionClient[T ChatCompletionInterface](mapping map[string]strin
 			}
 		}
 	}
+	instance := clientValue.Interface().(T)
+	if db, ok := any(instance).(*DouBaoChatCompletion); ok {
+		db.douBaoClient = NewClient()
+	}
 
-	return clientValue.Interface().(T)
+	return instance
 }
 
 func (g ChatCompletionClient) ChatCompletion() (Content, error) {
@@ -78,7 +82,7 @@ func (g ChatCompletionClient) ChatCompletion() (Content, error) {
 			},
 		},
 		TopP:      1,
-		MaxTokens: 1024,
+		MaxTokens: 1 << 13,
 		Stream:    false, //非流式
 	}
 	payload, err := json.Marshal(chatCompletionReq)
@@ -128,8 +132,14 @@ func (g ChatCompletionClient) ChatCompletion() (Content, error) {
 	_ = json.Unmarshal(reader, &response)
 	if len(response.Choices) > 0 {
 		content := response.Choices[0].Message.Content
+		formatContent := Content{
+			Type:    OutputContent,
+			Step:    g.ProcessStep,
+			Content: content,
+		}
+		jsonBody, _ := json.Marshal(formatContent)
 		fullResponse.WriteString(content)
-		writeSSEEvent(g.StreamWriter, g.Flusher, content) //也以流式形式返回前端
+		writeSSEEvent(g.StreamWriter, g.Flusher, string(jsonBody)) //也以流式形式返回前端
 	}
 	return Content{
 		Type:    OutputContent,
@@ -179,7 +189,6 @@ func (g ChatCompletionClient) ChatCompletionStream() (Content, error) {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+consts.DeepSeekApiKey)
 	req.Header.Set("Accept", "text/event-stream")
-	log.Println("api key : ", consts.DeepSeekApiKey)
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -206,7 +215,18 @@ func (g ChatCompletionClient) ChatCompletionStream() (Content, error) {
 
 	reader := bufio.NewReader(resp.Body)
 
+	recvTimeout := 10 * time.Second
+	recvTimer := time.NewTimer(recvTimeout)
+	defer recvTimer.Stop()
+
 	for {
+		select {
+		case <-recvTimer.C:
+			// 规定时间没有收到新数据，返回错误
+			break
+		default:
+		}
+
 		line, err := reader.ReadString('\n')
 		if err != nil {
 			if err == io.EOF {
@@ -214,6 +234,11 @@ func (g ChatCompletionClient) ChatCompletionStream() (Content, error) {
 			}
 			log.Println("Error reading stream: ", err)
 		}
+
+		if !recvTimer.Stop() {
+			<-recvTimer.C
+		}
+		recvTimer.Reset(recvTimeout)
 
 		if strings.HasPrefix(line, "data: ") {
 			jsonStr := strings.TrimPrefix(line, "data: ")

@@ -1,9 +1,11 @@
 package utils
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 func FindRootPath() (string, error) {
@@ -23,4 +25,32 @@ func FindRootPath() (string, error) {
 		}
 		startDir = parentDir
 	}
+}
+
+func FindProjectName() (string, error) {
+	rootPath, err := FindRootPath()
+	if err != nil {
+		return "", fmt.Errorf("failed to find root path: %w", err)
+	}
+
+	goModPath := filepath.Join(rootPath, "go.mod")
+	file, err := os.Open(goModPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to open go.mod: %w", err)
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, "module ") {
+			return strings.TrimSpace(line[len("module "):]), nil
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return "", fmt.Errorf("error scanning go.mod: %w", err)
+	}
+
+	return "", fmt.Errorf("module declaration not found in go.mod")
 }

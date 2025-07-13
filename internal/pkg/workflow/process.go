@@ -1,43 +1,51 @@
 package workflow
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"ggb_server/internal/app/schema"
+	"ggb_server/internal/config"
 	"ggb_server/internal/consts"
 	"ggb_server/internal/pkg/workflow/aiModule"
+	"ggb_server/internal/utils"
+	"github.com/volcengine/volcengine-go-sdk/service/arkruntime/model"
 	"io"
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
 
 type Process struct {
 	UserMessage string
+	ImgUrl      string
 	Flusher     http.Flusher
 	W           io.Writer
+	Ctx         context.Context
 
 	config consts.Config
 }
 
-func NewProcess(userMessage string, flusher http.Flusher, w io.Writer) Process {
-	return Process{
+func NewProcess(userMessage string, imgUrl string, flusher http.Flusher, w io.Writer, ctx context.Context) *Process {
+	return &Process{
 		UserMessage: userMessage,
+		ImgUrl:      imgUrl,
 		Flusher:     flusher,
 		W:           w,
+		Ctx:         ctx,
 	}
 }
 
-func (p Process) StartProcess(imgUrl string) error {
-	res, err := p.Classify(imgUrl)
+func (p *Process) StartProcess() error {
+	res, err := p.Classify()
 	if err != nil {
 		return err
 	}
-	elements, err := p.ExtractElementsStream(res, imgUrl)
+	elements, err := p.ExtractElementsStream(res)
 	if err != nil {
 		return err
 	}
@@ -45,50 +53,47 @@ func (p Process) StartProcess(imgUrl string) error {
 	if err != nil {
 		return err
 	}
-	html, err := p.GenerateHTML(commands)
+	_, err = p.GenerateHTML(commands)
 	if err != nil {
 		return err
 	}
-	log.Println(html)
 	return nil
 }
 
-func (p Process) Classify(imgUrl string) (map[string]string, error) {
-	return p.doClassification(imgUrl)
+func (p *Process) Classify() (map[string]string, error) {
+	return p.doClassification()
 }
 
-func (p Process) ExtractElementsStream(classifyRes map[string]string, imgUrl string) (string, error) {
+func (p *Process) ExtractElementsStream(classifyRes map[string]string) (string, error) {
 	p.config = p.lookUpClassification(classifyRes)
 	if p.config.Extract.Skip {
 		return "", nil
 	}
-	return p.doExtract(classifyRes, imgUrl)
+	return p.doExtract(classifyRes)
 }
 
-func (p Process) GenerateGGB(elements string) (string, error) {
+func (p *Process) GenerateGGB(elements string) (string, error) {
 	if p.config.GenGGB.Skip {
 		return elements, nil
 	}
 	return p.doGenGGB(elements)
 }
 
-func (p Process) GenerateHTML(command string) (string, error) {
+func (p *Process) GenerateHTML(command string) (string, error) {
+	filter := filterCommands(command)
 	if p.config.GenHTML.Skip {
-		return command, nil
+		return filter, nil
 	}
-	return p.doGenHTML(command)
+	return p.doGenHTML(filter)
 }
 
-func (p Process) doClassification(imgUrl string) (map[string]string, error) {
-	userContent := []schema.Content{
-		schema.Content{
-			Type: "text",
-			Text: p.UserMessage,
-		},
-	}
-
-	if imgUrl != "" {
-		file, err := os.Open(imgUrl)
+func (p *Process) doClassification() (map[string]string, error) {
+	imgUrl := p.ImgUrl
+	if imgUrl != "" && (strings.Contains(imgUrl, "localhost") || strings.Contains(imgUrl, "127.0.0.1")) {
+		path := imgUrl[strings.Index(imgUrl, config.Cfg.Static.Path):]
+		rootPath, _ := utils.FindRootPath()
+		imgPath := filepath.Join(rootPath, path)
+		file, err := os.Open(imgPath)
 		if err != nil {
 			log.Println("Error opening file error: ", err)
 			return nil, err
@@ -99,34 +104,25 @@ func (p Process) doClassification(imgUrl string) (map[string]string, error) {
 			log.Println("Error reading file error: ", err)
 			return nil, err
 		}
-		imgBase64 := fmt.Sprintf("data:image/png;base64,%s", base64.StdEncoding.EncodeToString(fileContent))
-
-		userContent = append(userContent, schema.Content{
-			Type:     "image_url",
-			ImageUrl: imgBase64,
-		})
-	}
-
-	userContentBytes, err := json.Marshal(userContent)
-	if err != nil {
-		log.Println("Error marshalling user content error: ", err)
-		return nil, err
+		imgBase64 := fmt.Sprintf("data:image/%s;base64,%s", strings.ToLower(filepath.Ext(imgPath)), base64.StdEncoding.EncodeToString(fileContent))
+		imgUrl = imgBase64
 	}
 
 	mapping := map[string]string{
-		"model":                        string(consts.DeepSeekReasoner),
-		"message":                      string(userContentBytes),
+		"model":                        string(consts.StepFuncChat1oTurbo),
+		"message":                      p.UserMessage,
+		strings.ToLower("imgUrl"):      imgUrl,
 		strings.ToLower("processStep"): string(consts.Classify),
 		strings.ToLower("contentType"): string(aiModule.Classify),
 	}
 
-	client := aiModule.NewChatCompletionClient[*aiModule.ChatCompletionClient](mapping, p.Flusher, p.W)
-	res, err := client.ChatCompletionStream()
+	client := aiModule.NewChatCompletionClient[*aiModule.StepFunChatCompletion](mapping, p.Flusher, p.W)
+	res, err := client.ChatCompletion()
 	if err != nil {
 		log.Printf("type: %v, step: %v, content: %v\n", res.Type, res.Step, res.Content)
 		return nil, err
 	}
-	log.Println("classify content: ", res.Content)
+	log.Println("\n[classify content]: ", res.Content)
 
 	classifyRes, err := p.seekForClassificationRes(res)
 	if err != nil {
@@ -135,7 +131,7 @@ func (p Process) doClassification(imgUrl string) (map[string]string, error) {
 	return classifyRes, nil
 }
 
-func (p Process) seekForClassificationRes(content aiModule.Content) (map[string]string, error) {
+func (p *Process) seekForClassificationRes(content aiModule.Content) (map[string]string, error) {
 	re := regexp.MustCompile(`(?s)\{\s*"题目"\s*:\s*"[^"]*"\s*,\s*"类型"\s*:\s*"[^"]*"\s*\}`)
 	matches := re.FindString(content.Content)
 	if len(matches) == 0 {
@@ -161,11 +157,11 @@ func (p Process) seekForClassificationRes(content aiModule.Content) (map[string]
 		log.Println("classification failed")
 		return nil, errors.New("classification failed")
 	}
-	log.Printf("类型： %s , 题目： %s", problemType, problem)
+	log.Printf("类型： %s , 题目： %s\n\n", problemType, problem)
 	return res, nil
 }
 
-func (p Process) lookUpClassification(classify map[string]string) consts.Config {
+func (p *Process) lookUpClassification(classify map[string]string) consts.Config {
 	switch classify["类型"] {
 	case string(consts.G2D):
 		return consts.ConfigMapping[consts.G2D]
@@ -182,21 +178,18 @@ func (p Process) lookUpClassification(classify map[string]string) consts.Config 
 	}
 }
 
-func (p Process) doExtract(classify map[string]string, imgUrl string) (string, error) {
+func (p *Process) doExtract(classify map[string]string) (string, error) {
 	problem := classify["题目"]
 
 	mapping := map[string]string{
-		"model":                        string(consts.DeepSeekReasoner),
+		"model":                        string(consts.DouBaoSeed1V6),
 		"message":                      problem,
 		strings.ToLower("processStep"): string(p.config.Extract.ProcessStep),
 		strings.ToLower("contentType"): string(aiModule.Reasoning),
 	}
-
-	var client aiModule.ChatCompletionInterface
-	client = aiModule.NewChatCompletionClient[*aiModule.ChatCompletionClient](mapping, p.Flusher, p.W)
-
 	if classify["类型"] == string(consts.G3D) {
-		if imgUrl != "" {
+		if p.ImgUrl != "" {
+			imgUrl := p.ImgUrl
 			file, err := os.Open(imgUrl)
 			if err != nil {
 				log.Println("Error opening file error: ", err)
@@ -212,31 +205,36 @@ func (p Process) doExtract(classify map[string]string, imgUrl string) (string, e
 			mapping["imgUrl"] = imgBase64
 		}
 
-		mapping["model"] = string(consts.StepFuncChat)
-		client = aiModule.NewChatCompletionClient[*aiModule.StepFunChatCompletion](mapping, p.Flusher, p.W)
+		mapping["model"] = string(consts.StepFuncChat1oTurbo)
+		client := aiModule.NewChatCompletionClient[*aiModule.StepFunChatCompletion](mapping, p.Flusher, p.W)
 
 		res, err := client.ChatCompletion()
 		if err != nil {
-			log.Printf("type: %v, step: %v, content: %v\n", res.Type, res.Step, res.Content)
+			log.Printf("type: %v, step: %v, content: %v\n\n", res.Type, res.Step, res.Content)
 			return "", err
 		}
 		return res.Content, err
 	}
+
+	mapping[strings.ToLower("thinkingType")] = string(model.ThinkingTypeEnabled)
+	var client aiModule.ChatCompletionInterface
+	client = aiModule.NewChatCompletionClient[*aiModule.DouBaoChatCompletion](mapping, p.Flusher, p.W)
 
 	res, err := client.ChatCompletionStream()
 	if err != nil {
 		log.Printf("type: %v, step: %v, content: %v\n", res.Type, res.Step, res.Content)
 		return "", err
 	}
-	log.Println("extract content: ", res.Content)
+	log.Println("\n[extract content]: ", res.Content)
 
 	return res.Content, nil
 }
 
-func (p Process) doGenGGB(elements string) (string, error) {
+func (p *Process) doGenGGB(elements string) (string, error) {
+	filtered := filterElements(elements)
 	reader := strings.Builder{}
 	reader.WriteString("数学元素: \n")
-	reader.WriteString(elements)
+	reader.WriteString(filtered)
 	mapping := map[string]string{
 		"model":                        string(consts.DeepSeekChat),
 		"message":                      reader.String(),
@@ -248,22 +246,60 @@ func (p Process) doGenGGB(elements string) (string, error) {
 		log.Printf("type: %v, step: %v, content: %v\n", res.Type, res.Step, res.Content)
 		return "", err
 	}
-	log.Println("gen ggb content: ", res.Content)
+	log.Println("\n[gen ggb content]: ", res.Content)
 	return res.Content, nil
 }
 
-func (p Process) doGenHTML(command string) (string, error) {
+func (p *Process) doGenHTML(command string) (string, error) {
 	mapping := map[string]string{
 		"model":                        string(consts.DeepSeekChat),
 		"message":                      command,
 		strings.ToLower("processStep"): string(p.config.GenHTML.ProcessStep),
 	}
 	client := aiModule.NewChatCompletionClient[*aiModule.ChatCompletionClient](mapping, p.Flusher, p.W)
-	res, err := client.ChatCompletionStream()
+	res, err := client.ChatCompletion()
 	if err != nil {
 		log.Printf("type: %v, step: %v, content: %v\n", res.Type, res.Step, res.Content)
 		return "", err
 	}
-	log.Println("gen html content: ", res.Content)
+	log.Println("\n[gen html content]: ", res.Content)
 	return res.Content, nil
+}
+
+func filterElements(elements string) string {
+	startTag := "<element_contents>"
+	endTag := "</element_contents>"
+
+	startIdx := strings.Index(elements, startTag)
+	if startIdx == -1 {
+		return elements
+	}
+
+	endIdx := strings.Index(elements[startIdx:], endTag)
+	if endIdx == -1 {
+		return elements
+	}
+
+	contentStart := startIdx + len(startTag)
+	contentEnd := startIdx + endIdx
+	return elements[contentStart:contentEnd]
+}
+
+func filterCommands(elements string) string {
+	startTag := "<ggb_commands>"
+	endTag := "</ggb_commands>"
+
+	startIdx := strings.Index(elements, startTag)
+	if startIdx == -1 {
+		return elements
+	}
+
+	endIdx := strings.Index(elements[startIdx:], endTag)
+	if endIdx == -1 {
+		return elements
+	}
+
+	contentStart := startIdx + len(startTag)
+	contentEnd := startIdx + endIdx
+	return elements[contentStart:contentEnd]
 }

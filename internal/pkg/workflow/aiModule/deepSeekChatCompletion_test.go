@@ -1,22 +1,20 @@
 package aiModule
 
 import (
-	"encoding/base64"
+	"bytes"
 	"encoding/json"
-	"fmt"
 	"ggb_server/internal/app/schema"
 	"ggb_server/internal/consts"
-	"ggb_server/internal/utils"
 	"io"
 	"log"
-	"os"
+	"net/http"
 	"reflect"
 	"strings"
 	"testing"
 )
 
 func Test_reflect(t *testing.T) {
-	client := &ChatCompletionClient{}
+	client := &DouBaoChatCompletion{}
 
 	typeC := reflect.TypeOf(client)
 	valueC := reflect.ValueOf(client)
@@ -43,42 +41,26 @@ func Test_reflect(t *testing.T) {
 	}
 }
 
+func Test_NewClinet(t *testing.T) {
+	client := NewChatCompletionClient[*DouBaoChatCompletion](map[string]string{
+		"model": "model",
+	}, nil, nil)
+	log.Println(client)
+}
+
 func Test_Chat(t *testing.T) {
-	rootPath, _ := utils.FindRootPath()
-	url := "http://localhost:8080/static/upload/1752091241079782000.png"
-	prefix := "http://localhost:8080"
-	imgUrl := strings.Replace(url, prefix, rootPath, 1)
-	file, err := os.Open(imgUrl)
-	if err != nil {
-		log.Println("Error opening file error: ", err)
-	}
-	defer file.Close()
-	fileContent, err := io.ReadAll(file)
-	if err != nil {
-		log.Println("Error reading file error: ", err)
-	}
-	imgBase64 := fmt.Sprintf("data:image/png;base64,%s", base64.StdEncoding.EncodeToString(fileContent))
-	originalSize := len(fileContent)
-	encodedSize := len(base64.StdEncoding.EncodeToString(fileContent))
-	fmt.Printf("原始文件大小: %d 字节 (%.2f KB)\n", originalSize, float64(originalSize)/1024)
-	fmt.Printf("Base64编码后大小: %d 字节 (%.2f KB)\n", encodedSize, float64(encodedSize)/1024)
-	fmt.Printf("大小增加比例: %.2f%%\n", float64(encodedSize-originalSize)/float64(originalSize)*100)
 	userContent := []schema.Content{
 		schema.Content{
 			Type: "text",
 			Text: "描述这道题目, 同时使用中文回答 不要用英语",
 		},
-		schema.Content{
-			Type:     "image_url",
-			ImageUrl: imgBase64,
-		},
 	}
 
 	userContentBytes, err := json.Marshal(userContent)
 	mapping := map[string]string{
-		"model":                        string(consts.StepFuncChat),
+		"model":                        string(consts.StepFuncChat1oTurbo),
 		"message":                      string(userContentBytes),
-		strings.ToLower("imgUrl"):      imgBase64,
+		strings.ToLower("imgUrl"):      "http://106.52.162.78:8020/static/upload/1752302889160686111.jpg",
 		strings.ToLower("processStep"): string(consts.Classify),
 		strings.ToLower("contentType"): string(Classify),
 	}
@@ -91,4 +73,67 @@ func Test_Chat(t *testing.T) {
 		return
 	}
 	log.Println("res: ", res.Content)
+}
+
+func Test_ChatCompletion(t *testing.T) {
+	client := NewChatCompletionClient[*ChatCompletionClient](map[string]string{
+		"model":                        string(consts.DeepSeekChat),
+		"message":                      "你好 possible是什么意思",
+		strings.ToLower("processStep"): string(consts.Classify),
+	}, nil, nil)
+
+	res, err := client.ChatCompletion()
+	if err != nil {
+		log.Println("err: ", err)
+	}
+	log.Println("res: ", res.Content)
+}
+
+func Test_ChatCompletion2(t *testing.T) {
+	chatCompletionReq := schema.DeepSeekRequest{
+		Model: string(consts.DeepSeekChat),
+		Messages: []schema.Message{
+			schema.Message{
+				Role:    "system",
+				Content: "你是一名英语老师",
+			},
+			schema.Message{
+				Role:    "user",
+				Content: "possible的中文意思是什么",
+			},
+		},
+		TopP:      1,
+		MaxTokens: 1 << 13,
+		Stream:    false, //非流式
+	}
+	payload, err := json.Marshal(chatCompletionReq)
+	if err != nil {
+		log.Println("err: ", err)
+		return
+	}
+	client := &http.Client{}
+	req, err := http.NewRequest(http.MethodPost, consts.DeepSeekChatCompletionUrl, bytes.NewBuffer(payload))
+
+	if err != nil {
+		log.Println("err: ", err)
+		return
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+consts.DeepSeekApiKey)
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Println("err: ", err)
+		return
+	}
+	defer resp.Body.Close()
+	reader, _ := io.ReadAll(resp.Body)
+	response := schema.DeepSeekResponse{}
+	fullResponse := strings.Builder{}
+	_ = json.Unmarshal(reader, &response)
+	if len(response.Choices) > 0 {
+		content := response.Choices[0].Message.Content
+		fullResponse.WriteString(content)
+	}
+	log.Println("res: ", fullResponse.String())
 }

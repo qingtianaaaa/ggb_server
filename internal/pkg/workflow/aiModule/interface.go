@@ -6,8 +6,8 @@ type ChatCompletionInterface interface {
 }
 
 type ProcessTemplate interface {
-	Classify(string) (map[string]string, error)
-	ExtractElementsStream(map[string]string, string) (string, error)
+	Classify() (map[string]string, error)
+	ExtractElementsStream(map[string]string) (string, error)
 	GenerateGGB(string) (string, error)
 	GenerateHTML(string) (string, error)
 }

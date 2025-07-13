@@ -12,6 +12,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 )
 
 type StepFunChatCompletion struct {
@@ -24,46 +25,40 @@ type StepFunChatCompletion struct {
 }
 
 func (s StepFunChatCompletion) ChatCompletion() (Content, error) {
-	content := []schema.StepFunContent{
-		schema.StepFunContent{
+	content := schema.UserMessageContent{
+		schema.TextType{
 			Type: "text",
 			Text: s.Message,
 		},
 	}
 	if s.ImgUrl != "" {
-		content = append(content, schema.StepFunContent{
+		content = append(content, schema.ImageType{
 			Type: "image_url",
 			ImageUrl: struct {
+				Url    string `json:"url"`
+				Detail string `json:"detail"`
+			}(struct {
 				Url    string
 				Detail string
-			}{Url: s.ImgUrl, Detail: "high"},
+			}{Url: s.ImgUrl, Detail: "high"}),
 		})
-	}
-
-	contentByte, err := json.Marshal(content)
-	if err != nil {
-		log.Println("Error marshalling user content error: ", err)
-		return Content{
-			Type:    Error,
-			Content: err.Error(),
-			Step:    s.ProcessStep,
-		}, err
 	}
 
 	chatCompletionReq := schema.StepFunChatCompletionRequest{
 		Model: string(s.Model),
-		Messages: []schema.Message{
-			schema.Message{
+		Messages: schema.ChatMessage{
+			schema.SystemMessage{
 				Role:    "system",
 				Content: consts.ProcessStepMapping[s.ProcessStep],
 			},
-			schema.Message{
+			schema.UserMessage{
 				Role:    "user",
-				Content: string(contentByte),
+				Content: content,
 			},
 		},
 		Stream: false,
 	}
+
 	payload, err := json.Marshal(chatCompletionReq)
 	if err != nil {
 		log.Println("json marshal error:", err)
@@ -111,8 +106,14 @@ func (s StepFunChatCompletion) ChatCompletion() (Content, error) {
 	_ = json.Unmarshal(reader, &response)
 	if len(response.Choices) > 0 {
 		outputContent := response.Choices[0].Message.Content
+		formatContent := Content{
+			Type:    OutputContent,
+			Step:    s.ProcessStep,
+			Content: outputContent,
+		}
+		jsonBody, _ := json.Marshal(formatContent)
 		fullResponse.WriteString(outputContent)
-		writeSSEEvent(s.StreamWriter, s.Flusher, outputContent) //也以流式形式返回前端
+		writeSSEEvent(s.StreamWriter, s.Flusher, string(jsonBody)) //也以流式形式返回前端
 	}
 	return Content{
 		Type:    OutputContent,
@@ -122,42 +123,35 @@ func (s StepFunChatCompletion) ChatCompletion() (Content, error) {
 }
 
 func (s StepFunChatCompletion) ChatCompletionStream() (Content, error) {
-	content := []schema.StepFunContent{
-		schema.StepFunContent{
+	content := schema.UserMessageContent{
+		schema.TextType{
 			Type: "text",
 			Text: s.Message,
 		},
 	}
 	if s.ImgUrl != "" {
-		content = append(content, schema.StepFunContent{
+		content = append(content, schema.ImageType{
 			Type: "image_url",
 			ImageUrl: struct {
+				Url    string `json:"url"`
+				Detail string `json:"detail"`
+			}(struct {
 				Url    string
 				Detail string
-			}{Url: s.ImgUrl, Detail: "high"},
+			}{Url: s.ImgUrl, Detail: "high"}),
 		})
-	}
-
-	contentByte, err := json.Marshal(content)
-	if err != nil {
-		log.Println("Error marshalling user content error: ", err)
-		return Content{
-			Type:    Error,
-			Content: err.Error(),
-			Step:    s.ProcessStep,
-		}, err
 	}
 
 	chatCompletionReq := schema.StepFunChatCompletionRequest{
 		Model: string(s.Model),
-		Messages: []schema.Message{
-			schema.Message{
+		Messages: schema.ChatMessage{
+			schema.SystemMessage{
 				Role:    "system",
 				Content: consts.ProcessStepMapping[s.ProcessStep],
 			},
-			schema.Message{
+			schema.UserMessage{
 				Role:    "user",
-				Content: string(contentByte),
+				Content: content,
 			},
 		},
 		Stream: true,
@@ -205,7 +199,17 @@ func (s StepFunChatCompletion) ChatCompletionStream() (Content, error) {
 
 	reader := bufio.NewReader(resp.Body)
 
+	recvTimeout := 10 * time.Second
+	recvTimer := time.NewTimer(recvTimeout)
+	defer recvTimer.Stop()
+
 	for {
+		select {
+		case <-recvTimer.C:
+			// 规定时间没有收到新数据，返回错误
+			break
+		default:
+		}
 		line, err := reader.ReadString('\n')
 		if err != nil {
 			if err == io.EOF {
@@ -213,6 +217,11 @@ func (s StepFunChatCompletion) ChatCompletionStream() (Content, error) {
 			}
 			log.Println("Error reading stream: ", err)
 		}
+
+		if !recvTimer.Stop() {
+			<-recvTimer.C
+		}
+		recvTimer.Reset(recvTimeout)
 
 		if strings.HasPrefix(line, "data:") {
 			jsonStr := strings.Trim(line, "data: ")

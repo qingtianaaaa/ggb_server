@@ -1,6 +1,7 @@
 server:
-  port: 8080
-  mode: "debug"  #debug、prod、dev
+  name: ggb_server
+  port: 8081
+  mode: "test"  #test、prod、dev
 
 db:
   host: "localhost"
@@ -12,8 +13,11 @@ db:
   max_open_conns: 100
 
 jwt:
-  secret: "secret",
+  secret: "secret"
   expire: 30 #min
+
+static:
+  path: "static/upload"
 
 log:
   level: "info" # debug, info, warn, error, fatal
@@ -25,4 +29,6 @@ ai_model:
     apiKey: "sk-9320e048d0d04f37a99eaa4d984bbe86"
   stepfun:
     apiKey: "4qNfUujEuOkN0WWP9TNHRDfedWM6KWVE8KnErfKRicGBfj9JWkKA4QYktcqLPr4Ch"
+  doubao:
+    apiKey: "c618f374-1078-46c7-ba51-a4a7fcd8294e"
 

@@ -1,8 +1,11 @@
 package consts
 
+import "ggb_server/internal/config"
+
 type ProcessStep string
 type DeepSeekModel string
 type StepFunModel string
+type DouBaoModel string
 type ProblemType string
 type Config struct {
 	Extract StepConfig
@@ -15,13 +18,15 @@ type StepConfig struct {
 }
 
 var (
-	DeepSeekApiKey     = "sk-9320e048d0d04f37a99eaa4d984bbe86"
-	StepFunApiKey      = "4qNfUujEuOkN0WWP9TNHRDfedWM6KWVE8KnErfKRicGBfj9JWkKA4QYktcqLPr4Ch"
+	DeepSeekApiKey     = config.Cfg.AIModel.DeepSeek.ApiKey
+	StepFunApiKey      = config.Cfg.AIModel.StepFun.ApiKey
+	DouBaoApiKey       = config.Cfg.AIModel.DouBao.ApiKey
 	ProcessStepMapping = map[ProcessStep]string{
 		Classify: ClassificationSystemPrompt,
 
 		_2DExtract:       GeoExtractSystemPrompt,
 		_3DExtract:       GeoExtractSystemPrompt,
+		DouBaoExtract:    DouBaoExtractSystemPrompt,
 		FuncExtract:      FuncExtractSystemPrompt,
 		KnowledgeExtract: KnowledgePointExtractSystemPrompt,
 
@@ -39,7 +44,7 @@ var (
 	ConfigMapping = map[ProblemType]Config{ //分类配置
 		G2D: Config{
 			Extract: StepConfig{
-				ProcessStep: _2DExtract,
+				ProcessStep: DouBaoExtract,
 				Skip:        false,
 			},
 			GenGGB: StepConfig{
@@ -133,6 +138,7 @@ const (
 
 	_2DExtract       ProcessStep = "2DExtract"
 	_3DExtract       ProcessStep = "3DExtract"
+	DouBaoExtract    ProcessStep = "DouBaoExtract"
 	FuncExtract      ProcessStep = "funcExtract"
 	KnowledgeExtract ProcessStep = "KnowledgeExtract"
 
@@ -145,9 +151,12 @@ const (
 	FunctionGenerateHTML  ProcessStep = "FunctionGenerateHTML"
 	KnowledgeGenerateHTML ProcessStep = "KnowledgeGenerateHTML"
 
-	DeepSeekReasoner DeepSeekModel = "deepseek-reasoner"
-	DeepSeekChat     DeepSeekModel = "deepseek-chat"
-	StepFuncChat     StepFunModel  = "step-1o-turbo-vision"
+	DeepSeekReasoner    DeepSeekModel = "deepseek-reasoner"
+	DeepSeekChat        DeepSeekModel = "deepseek-chat"
+	StepFuncChat1oTurbo StepFunModel  = "step-1o-turbo-vision"
+	StepFunStep1V8K     StepFunModel  = "step-1v-8k"
+	DouBaoSeed1V6       DouBaoModel   = "doubao-seed-1.6-250615"
+	DouBaoSeed1V6Final  DouBaoModel   = "doubao-seed-1-6-flash-250615"
 
 	G2D         ProblemType = "2D平面几何"
 	G3D         ProblemType = "3D平面几何"
@@ -167,9 +176,9 @@ const (
 								要求：
 								1. 准确提取题目文字内容
 								2. 根据题目涉及的数学知识点进行分类
-								3. 严格按照指定的JSON格式返回结果
+								3. 严格按照指定的JSON格式返回结果！！！
 								
-								返回格式：
+								返回的JSON格式：
 								{
 								"题目": "完整的题目内容",
 								"类型": "分类结果（2D平面几何/3D立体几何/函数/其他）"
@@ -199,6 +208,32 @@ const (
 						
 						### 6. **图形**
 						</输出格式>`
+
+	DouBaoExtractSystemPrompt = `
+							<身份>
+							你是一名擅长中学数学的老师，你需要根据上传的数学题目，提取出题目和问题中包含的所有图形（圆、四边形、三角形等）、点、直线（对称轴、切线等）、线段和函数并以规定格式列出。
+							若题目中元素的信息在问题中需要求解得出（点的坐标、函数的解析式等），你必须计算答案并与其他元素一起列出，以保证输出答案的精确。
+							</身份>
+							
+							<需求>
+							•   题目和各个小问中提到的所有元素包括计算过程中涉及的辅助线都必须包含，以保证输出答案的精确。
+							•   若题目中需要分类讨论，相关元素的所有情况都必须列出，以保证输出答案的精准。
+							•   输出严格参照下方格式，不得添加任何额外内容。
+							</需求>
+							
+							<输出格式>
+							<element_contents>
+							### 1. **点**
+							
+							### 2. **直线**
+							
+							### 3. **线段**
+							
+							### 4. **函数**
+							
+							### 5. **图形**
+							</element_contents>
+							</输出格式>`
 
 	FuncExtractSystemPrompt = `
 							<身份>
@@ -295,6 +330,7 @@ const (
 								</关键要求>
 								
 								<输出格式>
+								<ggb_commands>
 								### 1. 点（Points）
 								   - **A点**："A = (-2, 0)""
 								   - **M点**（三种情况）：
@@ -325,6 +361,7 @@ const (
 								### 其他辅助指令
 								   - **依赖更新**："SetDynamicColor(parallelogram1, "blue")"
 								   - **隐藏辅助点**："SetVisibleInView(H, false)"
+								</ggb_commands>
 								</输出格式>`
 
 	_3DGGBGenerateSystemPrompt = `<身份>
@@ -355,6 +392,7 @@ const (
 									</关键要求>
 									
 									<输出格式>
+									</ggb_commands>	
 									### 1. 点（Points）
 									   - **A点**："A = (-2, 0, 1)"
 									   - **M点**（三种情况）：
@@ -376,6 +414,7 @@ const (
 									### 其他辅助指令
 									   - **依赖更新**："SetDynamicColor(cube, "blue")"
 									   - **隐藏辅助点**："SetVisibleInView(H, false)"
+									</ggb_commands>
 									</输出格式>`
 
 	FuncGGBGenerateSystemPrompt = `
