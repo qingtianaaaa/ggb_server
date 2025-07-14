@@ -4,6 +4,7 @@ import (
 	"ggb_server/internal/app/handler"
 	"ggb_server/internal/config"
 	"ggb_server/internal/middleware"
+	"ggb_server/internal/pkg/database"
 	"ggb_server/internal/utils"
 	"github.com/gin-gonic/gin"
 	"os"
@@ -35,6 +36,7 @@ func AddMiddleware(e *gin.Engine) {
 	e.Use(middleware.CORSMiddleware())
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recovery())
+	e.Use(middleware.DBMiddleware(database.GetDB()))
 	//e.Use(middleware.JWTAuthMiddleware())
 }
 

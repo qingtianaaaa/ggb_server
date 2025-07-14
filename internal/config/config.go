@@ -70,6 +70,11 @@ var (
 func init() {
 	rootPath, _ := findRootPath()
 	loadConfig(rootPath)
+
+	//err := database.InitDB(Cfg.Database.GetDSN())
+	//if err != nil {
+	//	log.Panicf("init db err: %v, dsn: %v", err, Cfg.Database.GetDSN())
+	//}
 }
 
 func LoadConfig() {

@@ -5,6 +5,7 @@ import (
 	"ggb_server/internal/utils"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 	"net/http"
 	"runtime/debug"
 	"time"
@@ -78,6 +79,17 @@ func Recovery() gin.HandlerFunc {
 		}()
 		c.Next()
 	}
+}
+
+func DBMiddleware(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Set("db", db)
+		c.Next()
+	}
+}
+
+func GetDB(c *gin.Context) *gorm.DB {
+	return c.MustGet("db").(*gorm.DB)
 }
 
 func Logger() gin.HandlerFunc {
