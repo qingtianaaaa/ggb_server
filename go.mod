@@ -5,6 +5,7 @@ go 1.23.10
 require (
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/gin-gonic/gin v1.10.1
+	github.com/jinzhu/copier v0.4.0
 	github.com/spf13/viper v1.20.1
 	github.com/volcengine/volcengine-go-sdk v1.1.22
 	go.uber.org/zap v1.27.0

@@ -42,7 +42,7 @@ func InitDB(dsn string) error {
 		sqlDB.SetMaxOpenConns(100)
 		sqlDB.SetConnMaxLifetime(time.Hour)
 	})
-
+	log.Println("connected to database")
 	return err
 }
 

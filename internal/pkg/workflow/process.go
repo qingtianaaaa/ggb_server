@@ -6,11 +6,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"ggb_server/internal/app/model"
 	"ggb_server/internal/config"
 	"ggb_server/internal/consts"
 	"ggb_server/internal/pkg/workflow/aiModule"
+	"ggb_server/internal/repository"
 	"ggb_server/internal/utils"
-	"github.com/volcengine/volcengine-go-sdk/service/arkruntime/model"
+	arkModel "github.com/volcengine/volcengine-go-sdk/service/arkruntime/model"
+	"gorm.io/gorm"
 	"io"
 	"log"
 	"net/http"
@@ -40,12 +43,37 @@ func NewProcess(userMessage string, imgUrl string, flusher http.Flusher, w io.Wr
 	}
 }
 
-func (p *Process) StartProcess() error {
-	res, err := p.Classify()
+func (p *Process) StartProcess(db *gorm.DB, message *model.Message) error {
+	rawRes, processedRes, err := p.Classify()
+	workflow1 := model.Workflow{
+		SessionID: message.SessionID,
+		MessageID: message.ID,
+		Type:      1,
+		Input:     message.Message,
+		Output:    rawRes,
+	}
 	if err != nil {
 		return err
 	}
-	elements, err := p.ExtractElementsStream(res)
+	err = repository.NewWorkflowRepository().Create(db, &workflow1)
+	if err != nil {
+		return err
+	}
+	elements, err := p.ExtractElementsStream(processedRes)
+	if err != nil {
+		return err
+	}
+	input, _ := json.Marshal(processedRes)
+	workflow2 := model.Workflow{
+		SessionID: message.SessionID,
+		MessageID: message.ID,
+		RootID:    workflow1.ID,
+		ParentID:  workflow1.ID,
+		Type:      2,
+		Input:     string(input),
+		Output:    elements,
+	}
+	err = repository.NewWorkflowRepository().Create(db, &workflow2)
 	if err != nil {
 		return err
 	}
@@ -53,14 +81,37 @@ func (p *Process) StartProcess() error {
 	if err != nil {
 		return err
 	}
-	_, err = p.GenerateHTML(commands)
+	workflow3 := model.Workflow{
+		SessionID: message.SessionID,
+		MessageID: message.ID,
+		RootID:    workflow1.ID,
+		ParentID:  workflow2.ID,
+		Type:      3,
+		Input:     elements,
+		Output:    commands,
+	}
+	err = repository.NewWorkflowRepository().Create(db, &workflow3)
 	if err != nil {
 		return err
 	}
-	return nil
+	res, err := p.GenerateHTML(commands)
+	if err != nil {
+		return err
+	}
+	workflow4 := model.Workflow{
+		SessionID: message.SessionID,
+		MessageID: message.ID,
+		RootID:    workflow1.ID,
+		ParentID:  workflow3.ID,
+		Type:      4,
+		Input:     elements,
+		Output:    res,
+	}
+	err = repository.NewWorkflowRepository().Create(db, &workflow4)
+	return err
 }
 
-func (p *Process) Classify() (map[string]string, error) {
+func (p *Process) Classify() (string, map[string]string, error) {
 	return p.doClassification()
 }
 
@@ -87,22 +138,20 @@ func (p *Process) GenerateHTML(command string) (string, error) {
 	return p.doGenHTML(filter)
 }
 
-func (p *Process) doClassification() (map[string]string, error) {
+func (p *Process) doClassification() (string, map[string]string, error) {
 	imgUrl := p.ImgUrl
 	if imgUrl != "" && (strings.Contains(imgUrl, "localhost") || strings.Contains(imgUrl, "127.0.0.1")) {
-		path := imgUrl[strings.Index(imgUrl, config.Cfg.Static.Path):]
-		rootPath, _ := utils.FindRootPath()
-		imgPath := filepath.Join(rootPath, path)
+		imgPath := utils.ProcessUrl(imgUrl, config.Cfg.Static.Path)
 		file, err := os.Open(imgPath)
 		if err != nil {
 			log.Println("Error opening file error: ", err)
-			return nil, err
+			return "", nil, err
 		}
 		defer file.Close()
 		fileContent, err := io.ReadAll(file)
 		if err != nil {
 			log.Println("Error reading file error: ", err)
-			return nil, err
+			return "", nil, err
 		}
 		imgBase64 := fmt.Sprintf("data:image/%s;base64,%s", strings.ToLower(filepath.Ext(imgPath)), base64.StdEncoding.EncodeToString(fileContent))
 		imgUrl = imgBase64
@@ -120,15 +169,15 @@ func (p *Process) doClassification() (map[string]string, error) {
 	res, err := client.ChatCompletion()
 	if err != nil {
 		log.Printf("type: %v, step: %v, content: %v\n", res.Type, res.Step, res.Content)
-		return nil, err
+		return "", nil, err
 	}
 	log.Println("\n[classify content]: ", res.Content)
 
 	classifyRes, err := p.seekForClassificationRes(res)
 	if err != nil {
-		return nil, err
+		return "", nil, err
 	}
-	return classifyRes, nil
+	return res.Content, classifyRes, nil
 }
 
 func (p *Process) seekForClassificationRes(content aiModule.Content) (map[string]string, error) {
@@ -216,7 +265,7 @@ func (p *Process) doExtract(classify map[string]string) (string, error) {
 		return res.Content, err
 	}
 
-	mapping[strings.ToLower("thinkingType")] = string(model.ThinkingTypeEnabled)
+	mapping[strings.ToLower("thinkingType")] = string(arkModel.ThinkingTypeEnabled)
 	var client aiModule.ChatCompletionInterface
 	client = aiModule.NewChatCompletionClient[*aiModule.DouBaoChatCompletion](mapping, p.Flusher, p.W)
 

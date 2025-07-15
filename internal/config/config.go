@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"ggb_server/internal/pkg/database"
 	"ggb_server/internal/utils"
 	"github.com/spf13/viper"
 	"log"
@@ -71,10 +72,10 @@ func init() {
 	rootPath, _ := findRootPath()
 	loadConfig(rootPath)
 
-	//err := database.InitDB(Cfg.Database.GetDSN())
-	//if err != nil {
-	//	log.Panicf("init db err: %v, dsn: %v", err, Cfg.Database.GetDSN())
-	//}
+	err := database.InitDB(Cfg.Database.GetDSN())
+	if err != nil {
+		log.Panicf("init db err: %v, dsn: %v", err, Cfg.Database.GetDSN())
+	}
 }
 
 func LoadConfig() {

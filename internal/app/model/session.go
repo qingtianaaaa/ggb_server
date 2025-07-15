@@ -1,9 +1,7 @@
 package model
 
-import "gorm.io/gorm"
-
 type Session struct {
-	Model            Model
+	Model
 	Title            string     `gorm:"size:128;comment:会话标题（可自动生成）" json:"title"`
 	UserID           string     `gorm:"type:char(36);not null;comment:用户ID" json:"userId"`
 	MessageCount     int        `gorm:"default:0;comment:总消息数" json:"messageCount"`
@@ -34,39 +32,4 @@ func (s *Session) GetData() (*SessionData, error) {
 // SetData 设置SessionData
 func (s *Session) SetData(data *SessionData) error {
 	return s.Data.FromStruct(data)
-}
-
-type SessionRepository interface {
-	Generic[Session]
-	GetByUserID(db *gorm.DB, userID string, page, pageSize int) ([]Session, error)
-	CountByUserID(db *gorm.DB, userID string) (int64, error)
-	SoftDelete(db *gorm.DB, id uint) error
-}
-
-type SessionRepo struct {
-	GenericImpl[Session]
-}
-
-func NewSessionRepository() SessionRepository {
-	return &SessionRepo{}
-}
-
-func (r *SessionRepo) GetByUserID(db *gorm.DB, userID string, page, pageSize int) ([]Session, error) {
-	var sessions []Session
-	err := db.Where("user_id = ? AND is_del = 0", userID).
-		Offset((page - 1) * pageSize).
-		Limit(pageSize).
-		Order("created_at DESC").
-		Find(&sessions).Error
-	return sessions, err
-}
-
-func (r *SessionRepo) CountByUserID(db *gorm.DB, userID string) (int64, error) {
-	var count int64
-	err := db.Model(&Session{}).Where("user_id = ? AND is_del = 0", userID).Count(&count).Error
-	return count, err
-}
-
-func (r *SessionRepo) SoftDelete(db *gorm.DB, id uint) error {
-	return db.Model(&Session{}).Where("id = ?", id).Update("is_del", 1).Error
 }

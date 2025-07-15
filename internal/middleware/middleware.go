@@ -88,10 +88,6 @@ func DBMiddleware(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
-func GetDB(c *gin.Context) *gorm.DB {
-	return c.MustGet("db").(*gorm.DB)
-}
-
 func Logger() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
