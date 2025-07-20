@@ -159,7 +159,7 @@ const (
 	DouBaoSeed1V6Final  DouBaoModel   = "doubao-seed-1-6-flash-250615"
 
 	G2D         ProblemType = "2D平面几何"
-	G3D         ProblemType = "3D平面几何"
+	G3D         ProblemType = "3D立体几何"
 	Func        ProblemType = "函数"
 	Knowledge   ProblemType = "知识点"
 	Other       ProblemType = "其他"
