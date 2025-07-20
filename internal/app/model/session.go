@@ -14,7 +14,7 @@ type Session struct {
 }
 
 func (s *Session) TableName() string {
-	return "session"
+	return "tb_session"
 }
 
 type SessionData struct {

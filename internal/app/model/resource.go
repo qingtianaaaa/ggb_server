@@ -13,7 +13,7 @@ type Resource struct {
 }
 
 func (r *Resource) TableName() string {
-	return "resource"
+	return "tb_resource"
 }
 
 type ResourceData struct {

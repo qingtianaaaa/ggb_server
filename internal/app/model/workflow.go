@@ -15,5 +15,5 @@ type Workflow struct {
 }
 
 func (w *Workflow) TableName() string {
-	return "workflow"
+	return "tb_workflow"
 }

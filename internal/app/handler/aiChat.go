@@ -86,7 +86,7 @@ func insertMessage(db *gorm.DB, chatRequest schema.ChatRequest) (*model.Message,
 		Message:   chatRequest.Message,
 		Identity:  0,
 	}
-	messageRepo := repository.NewMessageRepository()
+	messageRepo := repository.NewMessageRepository[model.Message]()
 	if err := messageRepo.Create(db, message); err != nil {
 		return nil, err
 	}
@@ -97,7 +97,7 @@ func insertMessage(db *gorm.DB, chatRequest schema.ChatRequest) (*model.Message,
 			Type:      1,
 			URL:       utils.ProcessUrl(chatRequest.ImageUrl, config.Cfg.Static.Path),
 		}
-		return message, repository.NewResourceRepository().Create(db, &resource)
+		return message, repository.NewResourceRepository[model.Resource]().Create(db, &resource)
 	}
 	return message, nil
 }
