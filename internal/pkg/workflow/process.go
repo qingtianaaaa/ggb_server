@@ -55,7 +55,7 @@ func (p *Process) StartProcess(db *gorm.DB, message *model.Message) error {
 	if err != nil {
 		return err
 	}
-	err = repository.NewWorkflowRepository().Create(db, &workflow1)
+	err = repository.NewWorkflowRepository[model.Workflow]().Create(db, &workflow1)
 	if err != nil {
 		return err
 	}
@@ -73,7 +73,7 @@ func (p *Process) StartProcess(db *gorm.DB, message *model.Message) error {
 		Input:     string(input),
 		Output:    elements,
 	}
-	err = repository.NewWorkflowRepository().Create(db, &workflow2)
+	err = repository.NewWorkflowRepository[model.Workflow]().Create(db, &workflow2)
 	if err != nil {
 		return err
 	}
@@ -92,7 +92,7 @@ func (p *Process) StartProcess(db *gorm.DB, message *model.Message) error {
 			Input:     elements,
 			Output:    commands,
 		}
-		err = repository.NewWorkflowRepository().Create(db, &workflow3)
+		err = repository.NewWorkflowRepository[model.Workflow]().Create(db, &workflow3)
 		if err != nil {
 			return err
 		}
@@ -113,7 +113,7 @@ func (p *Process) StartProcess(db *gorm.DB, message *model.Message) error {
 		Input:     elements,
 		Output:    res,
 	}
-	err = repository.NewWorkflowRepository().Create(db, &workflow4)
+	err = repository.NewWorkflowRepository[model.Workflow]().Create(db, &workflow4)
 	return err
 }
 

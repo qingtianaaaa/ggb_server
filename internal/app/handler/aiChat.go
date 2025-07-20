@@ -112,7 +112,7 @@ func (a AiChat) CreateConversation(c *gin.Context) {
 	}
 
 	db := GetDB(c)
-	sessionRepo := repository.NewSessionRepository()
+	sessionRepo := repository.NewSessionRepository[model.Session]()
 
 	// 创建新的session
 	session := &model.Session{
@@ -202,7 +202,7 @@ func (a AiChat) GetConversations(c *gin.Context) {
 	}
 
 	db := GetDB(c)
-	sessionRepo := repository.NewSessionRepository()
+	sessionRepo := repository.NewSessionRepository[model.Session]()
 
 	// 获取用户的对话列表
 	sessions, err := sessionRepo.GetByUserID(db, userID, page, pageSize)
@@ -271,7 +271,7 @@ func (a AiChat) GetConversation(c *gin.Context) {
 	}
 
 	db := GetDB(c)
-	sessionRepo := repository.NewSessionRepository()
+	sessionRepo := repository.NewSessionRepository[model.Session]()
 
 	// 获取对话详情
 	session, err := sessionRepo.GetById(db, int64(id))
@@ -336,7 +336,7 @@ func (a AiChat) DeleteConversation(c *gin.Context) {
 	}
 
 	db := GetDB(c)
-	sessionRepo := repository.NewSessionRepository()
+	sessionRepo := repository.NewSessionRepository[model.Session]()
 
 	// 获取对话详情
 	session, err := sessionRepo.GetById(db, int64(id))
@@ -375,13 +375,13 @@ func (a AiChat) DeleteConversation(c *gin.Context) {
 
 func insertMessage(db *gorm.DB, chatRequest schema.ChatRequest) (*model.Message, error) {
 	message := &model.Message{
-		ParentID:  chatRequest.ParentId,
+		ParentID:  uint(chatRequest.ParentId),
 		SessionID: chatRequest.SessionId,
 		UserID:    utils.GenerateRandomString(36),
 		Message:   chatRequest.Message,
 		Identity:  0,
 	}
-	messageRepo := repository.NewMessageRepository()
+	messageRepo := repository.NewMessageRepository[model.Message]()
 	if err := messageRepo.Create(db, message); err != nil {
 		return nil, err
 	}
@@ -392,7 +392,7 @@ func insertMessage(db *gorm.DB, chatRequest schema.ChatRequest) (*model.Message,
 			Type:      1,
 			URL:       utils.ProcessUrl(chatRequest.ImageUrl, config.Cfg.Static.Path),
 		}
-		return message, repository.NewResourceRepository().Create(db, &resource)
+		return message, repository.NewResourceRepository[model.Resource]().Create(db, &resource)
 	}
 	return message, nil
 }

@@ -5,22 +5,24 @@ import (
 	"gorm.io/gorm"
 )
 
-type MessageRepository interface {
-	Generic[model.Message]
+type MessageRepository[T any] interface {
+	Generic[T]
 	GetBySessionID(db *gorm.DB, sessionID int64, page, pageSize int) ([]model.Message, error)
 	GetLastMessage(db *gorm.DB, sessionID int64) (*model.Message, error)
 	BatchCreate(db *gorm.DB, messages []model.Message) error
 }
 
-type MessageRepo struct {
-	GenericImpl[model.Message]
+type MessageRepo[T any] struct {
+	GenericImpl[T]
 }
 
-func NewMessageRepository() MessageRepository {
-	return &MessageRepo{}
+func NewMessageRepository[T any]() MessageRepository[T] {
+	return &MessageRepo[T]{
+		GenericImpl[T]{},
+	}
 }
 
-func (r *MessageRepo) GetBySessionID(db *gorm.DB, sessionID int64, page, pageSize int) ([]model.Message, error) {
+func (r *MessageRepo[T]) GetBySessionID(db *gorm.DB, sessionID int64, page, pageSize int) ([]model.Message, error) {
 	var messages []model.Message
 	err := db.Where("session_id = ? AND is_del = 0", sessionID).
 		Offset((page - 1) * pageSize).
@@ -30,7 +32,7 @@ func (r *MessageRepo) GetBySessionID(db *gorm.DB, sessionID int64, page, pageSiz
 	return messages, err
 }
 
-func (r *MessageRepo) GetLastMessage(db *gorm.DB, sessionID int64) (*model.Message, error) {
+func (r *MessageRepo[T]) GetLastMessage(db *gorm.DB, sessionID int64) (*model.Message, error) {
 	var message model.Message
 	err := db.Where("session_id = ? AND is_del = 0", sessionID).
 		Order("created_at DESC").
@@ -38,6 +40,6 @@ func (r *MessageRepo) GetLastMessage(db *gorm.DB, sessionID int64) (*model.Messa
 	return &message, err
 }
 
-func (r *MessageRepo) BatchCreate(db *gorm.DB, messages []model.Message) error {
+func (r *MessageRepo[T]) BatchCreate(db *gorm.DB, messages []model.Message) error {
 	return db.CreateInBatches(messages, 100).Error
 }
