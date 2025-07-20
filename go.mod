@@ -1,6 +1,6 @@
 module ggb_server
 
-go 1.23.10
+go 1.23.9
 
 require (
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
