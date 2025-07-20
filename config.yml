@@ -1,7 +1,7 @@
 server:
   name: ggb_server
-  port: 8081
-  mode: "test"  #test、prod、dev
+  port: 8080
+  mode: "prod"  #test、prod、dev
 
 db:
   host: "localhost"
