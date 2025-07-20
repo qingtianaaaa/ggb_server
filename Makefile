@@ -1,5 +1,5 @@
 # 配置变量
-BINARY_NAME = myapp
+BINARY_NAME = ggb_server
 MAIN_FILE   = ./cmd/main.go
 GO          = go
 PLATFORMS   = linux darwin windows
