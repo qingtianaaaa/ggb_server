@@ -3,6 +3,7 @@ package repository
 import (
 	"ggb_server/internal/app/model"
 	"gorm.io/gorm"
+	"time"
 )
 
 type UserRepository interface {
@@ -49,9 +50,10 @@ func (r *UserRepo) GetByInviteCode(db *gorm.DB, inviteCode string) (*model.User,
 }
 
 func (r *UserRepo) UpdateLoginInfo(db *gorm.DB, userID uint) error {
+	now := time.Now()
 	return db.Model(&model.User{}).Where("id = ?", userID).
 		Updates(map[string]interface{}{
-			"last_login_at": gorm.Expr("NOW()"),
+			"last_login_at": &now,
 			"login_count":   gorm.Expr("login_count + 1"),
 		}).Error
 }

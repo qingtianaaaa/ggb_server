@@ -82,6 +82,7 @@ func (u User) Register(c *gin.Context) {
 		InvitedBy:        req.InviteCode,
 		Status:           1,
 		FreeMessageCount: 100,
+		// LastLoginAt 字段不设置，保持为nil
 	}
 
 	err = userRepo.Create(db, user)
