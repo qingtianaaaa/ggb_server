@@ -49,6 +49,7 @@ func AddMiddleware(e *gin.Engine) {
 func aiChatModule(r *gin.RouterGroup) {
 	r.POST("/upload", AIChatAPI.Upload)
 	r.POST("/v2/chat", AIChatAPI.Chat)
+	r.POST("/conversation", AIChatAPI.Conversation)
 }
 
 func loginModule(r *gin.RouterGroup) {

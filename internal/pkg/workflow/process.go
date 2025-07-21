@@ -81,18 +81,24 @@ func (p *Process) StartProcess(db *gorm.DB, message *model.Message) error {
 	if err != nil {
 		return err
 	}
-	workflow3 := model.Workflow{
-		SessionID: message.SessionID,
-		MessageID: message.ID,
-		RootID:    workflow1.ID,
-		ParentID:  workflow2.ID,
-		Type:      3,
-		Input:     elements,
-		Output:    commands,
-	}
-	err = repository.NewWorkflowRepository().Create(db, &workflow3)
-	if err != nil {
-		return err
+	workflow4ParentId := workflow2.ID
+	if commands != "" {
+		workflow3 := model.Workflow{
+			SessionID: message.SessionID,
+			MessageID: message.ID,
+			RootID:    workflow1.ID,
+			ParentID:  workflow2.ID,
+			Type:      3,
+			Input:     elements,
+			Output:    commands,
+		}
+		err = repository.NewWorkflowRepository().Create(db, &workflow3)
+		if err != nil {
+			return err
+		}
+		workflow4ParentId = workflow3.ID
+	} else {
+		commands = elements
 	}
 	res, err := p.GenerateHTML(commands)
 	if err != nil {
@@ -102,7 +108,7 @@ func (p *Process) StartProcess(db *gorm.DB, message *model.Message) error {
 		SessionID: message.SessionID,
 		MessageID: message.ID,
 		RootID:    workflow1.ID,
-		ParentID:  workflow3.ID,
+		ParentID:  workflow4ParentId,
 		Type:      4,
 		Input:     elements,
 		Output:    res,
@@ -125,7 +131,7 @@ func (p *Process) ExtractElementsStream(classifyRes map[string]string) (string, 
 
 func (p *Process) GenerateGGB(elements string) (string, error) {
 	if p.config.GenGGB.Skip {
-		return elements, nil
+		return "", nil
 	}
 	return p.doGenGGB(elements)
 }
@@ -259,9 +265,10 @@ func (p *Process) doExtract(classify map[string]string) (string, error) {
 		}
 
 		mapping["model"] = string(consts.StepFuncChat1oTurbo)
+		mapping[strings.ToLower("thinkingType")] = string(arkModel.ThinkingTypeEnabled)
 		client := aiModule.NewChatCompletionClient[*aiModule.StepFunChatCompletion](mapping, p.Flusher, p.W)
 
-		res, err := client.ChatCompletion()
+		res, err := client.ChatCompletionStream()
 		if err != nil {
 			log.Printf("type: %v, step: %v, content: %v\n\n", res.Type, res.Step, res.Content)
 			return "", err

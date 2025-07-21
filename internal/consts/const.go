@@ -76,8 +76,8 @@ var (
 				Skip:        false,
 			},
 			GenGGB: StepConfig{
-				ProcessStep: FuncGenGGB,
-				Skip:        false,
+				ProcessStep: UnknownStep,
+				Skip:        true,
 			},
 			GenHTML: StepConfig{
 				ProcessStep: FunctionGenerateHTML,
