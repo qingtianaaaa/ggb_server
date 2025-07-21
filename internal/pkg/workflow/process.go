@@ -135,7 +135,11 @@ func (p *Process) GenerateHTML(command string) (string, error) {
 	if p.config.GenHTML.Skip {
 		return filter, nil
 	}
-	return p.doGenHTML(filter)
+	res, err := p.doGenHTML(filter)
+	if err != nil {
+		return "", err
+	}
+	return filterHTML(res), nil
 }
 
 func (p *Process) doClassification() (string, map[string]string, error) {
@@ -351,4 +355,23 @@ func filterCommands(elements string) string {
 	contentStart := startIdx + len(startTag)
 	contentEnd := startIdx + endIdx
 	return elements[contentStart:contentEnd]
+}
+
+func filterHTML(html string) string {
+	startTag := "<!DOCTYPE html>"
+	endTag := "</html>"
+
+	startIdx := strings.Index(html, startTag)
+	if startIdx == -1 {
+		return html
+	}
+
+	endIdx := strings.Index(html[startIdx:], endTag)
+	if endIdx == -1 {
+		return html
+	}
+
+	contentStart := startIdx + len(startTag)
+	contentEnd := startIdx + endIdx
+	return html[contentStart:contentEnd]
 }
