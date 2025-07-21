@@ -6,7 +6,11 @@ import (
 	"time"
 )
 
-var jwtSecret = []byte("secret")
+var jwtSecret []byte
+
+func InitJWTSecret(secret string) {
+	jwtSecret = []byte(secret)
+}
 
 type Claims struct {
 	UserID   uint   `json:"user_id"`
