@@ -364,21 +364,31 @@ func filterCommands(elements string) string {
 	return elements[contentStart:contentEnd]
 }
 
+// filterHTML 从文本中提取完整的HTML代码
 func filterHTML(html string) string {
-	startTag := "<!DOCTYPE html>"
-	endTag := "</html>"
-
-	startIdx := strings.Index(html, startTag)
-	if startIdx == -1 {
-		return html
+	// 查找 <!DOCTYPE html> 的开始位置
+	doctypeStart := strings.Index(html, "<!DOCTYPE html>")
+	if doctypeStart == -1 {
+		// 如果没有 DOCTYPE，尝试查找 <html> 标签
+		htmlStart := strings.Index(html, "<html")
+		if htmlStart == -1 {
+			return html
+		}
+		doctypeStart = htmlStart
 	}
 
-	endIdx := strings.Index(html[startIdx:], endTag)
+	// 查找 </html> 的结束位置
+	endTag := "</html>"
+	endIdx := strings.Index(html[doctypeStart:], endTag)
 	if endIdx == -1 {
 		return html
 	}
 
-	contentStart := startIdx + len(startTag)
-	contentEnd := startIdx + endIdx
-	return html[contentStart:contentEnd]
+	// 计算结束位置
+	endPos := doctypeStart + endIdx + len(endTag)
+
+	// 提取完整的HTML文档
+	htmlDoc := html[doctypeStart:endPos]
+
+	return htmlDoc
 }

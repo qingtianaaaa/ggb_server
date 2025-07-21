@@ -132,6 +132,9 @@ func (g ChatCompletionClient) ChatCompletion() (Content, error) {
 	_ = json.Unmarshal(reader, &response)
 	if len(response.Choices) > 0 {
 		content := response.Choices[0].Message.Content
+		if (g.ProcessStep == consts.TwoDGenerateHTML) || (g.ProcessStep == consts.ThreeDGenerateHTML) || (g.ProcessStep == consts.FunctionGenerateHTML) || (g.ProcessStep == consts.KnowledgeGenerateHTML) {
+			content = filterHTML(content)
+		}
 		formatContent := Content{
 			Type:    OutputContent,
 			Step:    g.ProcessStep,
@@ -294,4 +297,33 @@ func writeSSEEvent(w io.Writer, flusher http.Flusher, data string) {
 	}
 	fmt.Fprintf(w, "data: %s\n\n", data)
 	flusher.Flush()
+}
+
+// filterHTML 从文本中提取完整的HTML代码
+func filterHTML(html string) string {
+	// 查找 <!DOCTYPE html> 的开始位置
+	doctypeStart := strings.Index(html, "<!DOCTYPE html>")
+	if doctypeStart == -1 {
+		// 如果没有 DOCTYPE，尝试查找 <html> 标签
+		htmlStart := strings.Index(html, "<html")
+		if htmlStart == -1 {
+			return html
+		}
+		doctypeStart = htmlStart
+	}
+
+	// 查找 </html> 的结束位置
+	endTag := "</html>"
+	endIdx := strings.Index(html[doctypeStart:], endTag)
+	if endIdx == -1 {
+		return html
+	}
+
+	// 计算结束位置
+	endPos := doctypeStart + endIdx + len(endTag)
+
+	// 提取完整的HTML文档
+	htmlDoc := html[doctypeStart:endPos]
+
+	return htmlDoc
 }

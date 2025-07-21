@@ -35,8 +35,8 @@ var (
 		FuncGenGGB:     FuncGGBGenerateSystemPrompt,
 		//KnowledgeGenGGB: KnowledgeGenerateSystemPrompt,
 
-		_2DGenerateHTML:       _2DHTMLGenerateSystemPrompt,
-		_3DGenerateHTML:       _3DHTMLGenerateSystemPrompt,
+		TwoDGenerateHTML:      _2DHTMLGenerateSystemPrompt,
+		ThreeDGenerateHTML:    _3DHTMLGenerateSystemPrompt,
 		FunctionGenerateHTML:  FunctionHTMLGenerateSystemPrompt,
 		KnowledgeGenerateHTML: KnowledgePointHTMLGenerateSystemPrompt,
 	}
@@ -52,7 +52,7 @@ var (
 				Skip:        false,
 			},
 			GenHTML: StepConfig{
-				ProcessStep: _2DGenerateHTML,
+				ProcessStep: TwoDGenerateHTML,
 				Skip:        false,
 			},
 		},
@@ -66,7 +66,7 @@ var (
 				Skip:        false,
 			},
 			GenHTML: StepConfig{
-				ProcessStep: _3DGenerateHTML,
+				ProcessStep: ThreeDGenerateHTML,
 				Skip:        false,
 			},
 		},
@@ -146,8 +146,8 @@ const (
 	_3DGenerateGGB ProcessStep = "3DGenerateGGB"
 	FuncGenGGB     ProcessStep = "FuncGenGGB"
 
-	_2DGenerateHTML       ProcessStep = "2DGenerateHTML"
-	_3DGenerateHTML       ProcessStep = "3DGenerateHTML"
+	TwoDGenerateHTML      ProcessStep = "2DGenerateHTML"
+	ThreeDGenerateHTML    ProcessStep = "3DGenerateHTML"
 	FunctionGenerateHTML  ProcessStep = "FunctionGenerateHTML"
 	KnowledgeGenerateHTML ProcessStep = "KnowledgeGenerateHTML"
 
