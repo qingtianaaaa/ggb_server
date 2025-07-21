@@ -13,6 +13,7 @@ import (
 	"log"
 	"net/http"
 	"path/filepath"
+	"strconv"
 	"time"
 )
 
@@ -78,7 +79,7 @@ func (a AiChat) Chat(c *gin.Context) {
 	}
 }
 
-func (a AiChat) Conversation(c *gin.Context) {
+func (a AiChat) CreateConversation(c *gin.Context) {
 	var req schema.CreateConversationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -160,6 +161,211 @@ func getUserIDFromToken(c *gin.Context) (string, error) {
 
 	// 使用用户名作为UserID，因为Session模型中的UserID是string类型
 	return user.Username, nil
+}
+
+func (a AiChat) GetConversations(c *gin.Context) {
+	// 从JWT token中获取用户ID
+	userID, err := getUserIDFromToken(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"error":   "用户未认证",
+		})
+		return
+	}
+
+	// 获取分页参数
+	page := 1
+	pageSize := 20
+	if pageStr := c.Query("page"); pageStr != "" {
+		if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
+			page = p
+		}
+	}
+	if pageSizeStr := c.Query("pageSize"); pageSizeStr != "" {
+		if ps, err := strconv.Atoi(pageSizeStr); err == nil && ps > 0 && ps <= 100 {
+			pageSize = ps
+		}
+	}
+
+	db := GetDB(c)
+	sessionRepo := repository.NewSessionRepository()
+
+	// 获取用户的对话列表
+	sessions, err := sessionRepo.GetByUserID(db, userID, page, pageSize)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "获取对话列表失败",
+		})
+		return
+	}
+
+	// 获取总数
+	total, err := sessionRepo.CountByUserID(db, userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "获取对话总数失败",
+		})
+		return
+	}
+
+	// 转换为响应格式
+	conversations := make([]schema.ConversationInfo, len(sessions))
+	for i, session := range sessions {
+		conversations[i] = schema.ConversationInfo{
+			ID:               session.ID,
+			Title:            session.Title,
+			MessageCount:     session.MessageCount,
+			FreeMessageCount: session.FreeMessageCount,
+			CreatedAt:        session.CreatedAt.Format("2006-01-02 15:04:05"),
+			UpdatedAt:        session.UpdatedAt.Format("2006-01-02 15:04:05"),
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": schema.GetConversationsResponse{
+			Conversations: conversations,
+			Total:         total,
+			Page:          page,
+			PageSize:      pageSize,
+		},
+	})
+}
+
+func (a AiChat) GetConversation(c *gin.Context) {
+	// 从JWT token中获取用户ID
+	userID, err := getUserIDFromToken(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"error":   "用户未认证",
+		})
+		return
+	}
+
+	// 获取对话ID
+	conversationID := c.Param("id")
+	if conversationID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "对话ID不能为空",
+		})
+		return
+	}
+
+	id, err := strconv.ParseUint(conversationID, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "无效的对话ID",
+		})
+		return
+	}
+
+	db := GetDB(c)
+	sessionRepo := repository.NewSessionRepository()
+
+	// 获取对话详情
+	session, err := sessionRepo.GetById(db, int64(id))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"error":   "对话不存在",
+		})
+		return
+	}
+
+	// 检查权限（只能查看自己的对话）
+	if session.UserID != userID {
+		c.JSON(http.StatusForbidden, gin.H{
+			"success": false,
+			"error":   "无权限访问此对话",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": schema.GetConversationResponse{
+			ID:               session.ID,
+			Title:            session.Title,
+			MessageCount:     session.MessageCount,
+			FreeMessageCount: session.FreeMessageCount,
+			CreatedAt:        session.CreatedAt.Format("2006-01-02 15:04:05"),
+			UpdatedAt:        session.UpdatedAt.Format("2006-01-02 15:04:05"),
+		},
+	})
+}
+
+func (a AiChat) DeleteConversation(c *gin.Context) {
+	// 从JWT token中获取用户ID
+	userID, err := getUserIDFromToken(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"error":   "用户未认证",
+		})
+		return
+	}
+
+	// 获取对话ID
+	conversationID := c.Param("id")
+	if conversationID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "对话ID不能为空",
+		})
+		return
+	}
+
+	id, err := strconv.ParseUint(conversationID, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "无效的对话ID",
+		})
+		return
+	}
+
+	db := GetDB(c)
+	sessionRepo := repository.NewSessionRepository()
+
+	// 获取对话详情
+	session, err := sessionRepo.GetById(db, int64(id))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"error":   "对话不存在",
+		})
+		return
+	}
+
+	// 检查权限（只能删除自己的对话）
+	if session.UserID != userID {
+		c.JSON(http.StatusForbidden, gin.H{
+			"success": false,
+			"error":   "无权限删除此对话",
+		})
+		return
+	}
+
+	// 软删除对话
+	err = sessionRepo.SoftDelete(db, uint(id))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "删除对话失败",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "对话删除成功",
+	})
 }
 
 func insertMessage(db *gorm.DB, chatRequest schema.ChatRequest) (*model.Message, error) {
