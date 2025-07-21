@@ -8,8 +8,8 @@ type LoginRequest struct {
 type RegisterRequest struct {
 	Username   string `form:"username" binding:"required" json:"username"`
 	Password   string `form:"password" binding:"required" json:"password"`
-	Email      string `form:"email" binding:"required,email" json:"email"`
-	InviteCode string `form:"invite_code" json:"invite_code"`
+	Email      string `form:"email" binding:"omitempty,email" json:"email,omitempty"`
+	InviteCode string `form:"invite_code" json:"invite_code,omitempty"`
 }
 
 type LoginResponse struct {

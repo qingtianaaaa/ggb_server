@@ -35,14 +35,16 @@ func (u User) Register(c *gin.Context) {
 		return
 	}
 
-	// 检查邮箱是否已存在
-	existingUser, _ = userRepo.GetByEmail(db, req.Email)
-	if existingUser != nil {
-		c.JSON(http.StatusBadRequest, schema.ApiResponse{
-			Success: false,
-			Error:   "邮箱已存在",
-		})
-		return
+	// 检查邮箱是否已存在（如果提供了邮箱）
+	if req.Email != "" {
+		existingUser, _ = userRepo.GetByEmail(db, req.Email)
+		if existingUser != nil {
+			c.JSON(http.StatusBadRequest, schema.ApiResponse{
+				Success: false,
+				Error:   "邮箱已存在",
+			})
+			return
+		}
 	}
 
 	// 验证邀请码（如果提供）
