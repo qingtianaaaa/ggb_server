@@ -202,7 +202,7 @@ func (a AiChat) GetConversations(c *gin.Context) {
 	}
 
 	// 获取总数
-	total, err := sessionRepo.CountByUserID(db, userID)
+	_, err = sessionRepo.CountByUserID(db, userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -214,25 +214,17 @@ func (a AiChat) GetConversations(c *gin.Context) {
 	// 转换为响应格式
 	conversations := make([]schema.ConversationInfo, len(sessions))
 	for i, session := range sessions {
+		userid, _ := strconv.Atoi(session.UserID)
 		conversations[i] = schema.ConversationInfo{
-			ID:               session.ID,
-			Title:            session.Title,
-			MessageCount:     session.MessageCount,
-			FreeMessageCount: session.FreeMessageCount,
-			CreatedAt:        session.CreatedAt.Format("2006-01-02 15:04:05"),
-			UpdatedAt:        session.UpdatedAt.Format("2006-01-02 15:04:05"),
+			ID:        session.ID,
+			Title:     session.Title,
+			CreatorID: uint(userid),
+			CreatedAt: session.CreatedAt.Format("2006-01-02 15:04:05"),
+			UpdatedAt: session.UpdatedAt.Format("2006-01-02 15:04:05"),
 		}
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data": schema.GetConversationsResponse{
-			Conversations: conversations,
-			Total:         total,
-			Page:          page,
-			PageSize:      pageSize,
-		},
-	})
+	c.JSON(http.StatusOK, conversations)
 }
 
 func (a AiChat) GetConversation(c *gin.Context) {

@@ -10,12 +10,11 @@ type CreateConversationResponse struct {
 }
 
 type ConversationInfo struct {
-	ID               uint   `json:"id"`
-	Title            string `json:"title"`
-	MessageCount     int    `json:"messageCount"`
-	FreeMessageCount int    `json:"freeMessageCount"`
-	CreatedAt        string `json:"createdAt"`
-	UpdatedAt        string `json:"updatedAt"`
+	ID        uint   `json:"id"`
+	Title     string `json:"title"`
+	CreatorID uint   `json:"creator_id"`
+	CreatedAt string `json:"created_at"`
+	UpdatedAt string `json:"updated_at"`
 }
 
 type GetConversationsResponse struct {
