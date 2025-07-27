@@ -136,9 +136,15 @@ func (g ChatCompletionClient) ChatCompletion() (Content, error) {
 			content = filterHTML(content)
 		}
 		formatContent := Content{
-			Type:    HTMLCode,
+			Type:    OutputContent,
 			Step:    g.ProcessStep,
 			Content: content,
+		}
+		if (g.ProcessStep == consts.TwoDGenerateHTML) || g.ProcessStep == consts.ThreeDGenerateHTML || g.ProcessStep == consts.FunctionGenerateHTML {
+			formatContent.Type = GGBCommands
+		}
+		if (g.ProcessStep == consts.TwoDGenerateHTML) || (g.ProcessStep == consts.ThreeDGenerateHTML) || (g.ProcessStep == consts.FunctionGenerateHTML) || (g.ProcessStep == consts.KnowledgeGenerateHTML) {
+			formatContent.Type = HTMLCode
 		}
 		jsonBody, _ := json.Marshal(formatContent)
 		fullResponse.WriteString(content)

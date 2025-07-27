@@ -13,6 +13,7 @@ const (
 	Element       Type = "element"
 	Error         Type = "error"
 	Complete      Type = "complete"
+	GGBCommands   Type = "ggb_commands"
 	HTMLCode      Type = "html_code"
 )
 

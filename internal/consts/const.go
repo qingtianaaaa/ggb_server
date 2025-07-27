@@ -30,9 +30,9 @@ var (
 		FuncExtract:      FuncExtractSystemPrompt,
 		KnowledgeExtract: KnowledgePointExtractSystemPrompt,
 
-		_2DGenerateGGB: _2DGGBGenerateSystemPrompt,
-		_3DGenerateGGB: _3DGGBGenerateSystemPrompt,
-		FuncGenGGB:     FuncGGBGenerateSystemPrompt,
+		TWODGenerateGGB:   _2DGGBGenerateSystemPrompt,
+		ThreeDGenerateGGB: _3DGGBGenerateSystemPrompt,
+		FuncGenGGB:        FuncGGBGenerateSystemPrompt,
 		//KnowledgeGenGGB: KnowledgeGenerateSystemPrompt,
 
 		TwoDGenerateHTML:      _2DHTMLGenerateSystemPrompt,
@@ -48,7 +48,7 @@ var (
 				Skip:        false,
 			},
 			GenGGB: StepConfig{
-				ProcessStep: _2DGenerateGGB,
+				ProcessStep: TWODGenerateGGB,
 				Skip:        false,
 			},
 			GenHTML: StepConfig{
@@ -62,7 +62,7 @@ var (
 				Skip:        false,
 			},
 			GenGGB: StepConfig{
-				ProcessStep: _3DGenerateGGB,
+				ProcessStep: ThreeDGenerateGGB,
 				Skip:        false,
 			},
 			GenHTML: StepConfig{
@@ -142,9 +142,9 @@ const (
 	FuncExtract      ProcessStep = "funcExtract"
 	KnowledgeExtract ProcessStep = "KnowledgeExtract"
 
-	_2DGenerateGGB ProcessStep = "2DGenerateGGB"
-	_3DGenerateGGB ProcessStep = "3DGenerateGGB"
-	FuncGenGGB     ProcessStep = "FuncGenGGB"
+	TWODGenerateGGB   ProcessStep = "2DGenerateGGB"
+	ThreeDGenerateGGB ProcessStep = "3DGenerateGGB"
+	FuncGenGGB        ProcessStep = "FuncGenGGB"
 
 	TwoDGenerateHTML      ProcessStep = "2DGenerateHTML"
 	ThreeDGenerateHTML    ProcessStep = "3DGenerateHTML"
