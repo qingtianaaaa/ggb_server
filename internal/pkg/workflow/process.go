@@ -44,6 +44,7 @@ func NewProcess(userMessage string, imgUrl string, flusher http.Flusher, w io.Wr
 }
 
 func (p *Process) StartProcess(db *gorm.DB, message *model.Message) error {
+
 	rawRes, processedRes, err := p.Classify()
 	workflow1 := model.Workflow{
 		SessionID: message.SessionID,

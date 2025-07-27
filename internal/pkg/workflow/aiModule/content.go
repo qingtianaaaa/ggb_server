@@ -17,14 +17,14 @@ const (
 )
 
 type Content struct {
-	Type                   Type
-	Content                string
-	Step                   consts.ProcessStep
-	TimeStamp              int64
-	ThinkingCostTime       int64
-	RootFlowId             int
-	ParentFlowId           int
-	RelatedSessionId       int
-	RelatedMessageId       int
-	ParentRelatedMessageId int
+	Type                   Type               `json:"type"`
+	Content                string             `json:"content"`
+	Step                   consts.ProcessStep `json:"step"`
+	TimeStamp              int64              `json:"time_stamp"`
+	ThinkingCostTime       int64              `json:"thinking_cost_time"`
+	RootFlowId             int                `json:"root_flow_id"`
+	ParentFlowId           int                `json:"parent_flow_id"`
+	RelatedSessionId       int                `json:"related_session_id"`
+	RelatedMessageId       int                `json:"related_message_id"`
+	ParentRelatedMessageId int                `json:"parent_related_message_id"`
 }
