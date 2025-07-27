@@ -107,7 +107,7 @@ func (s StepFunChatCompletion) ChatCompletion() (Content, error) {
 	if len(response.Choices) > 0 {
 		outputContent := response.Choices[0].Message.Content
 		formatContent := Content{
-			Type:    OutputContent,
+			Type:    Reasoning,
 			Step:    s.ProcessStep,
 			Content: outputContent,
 		}

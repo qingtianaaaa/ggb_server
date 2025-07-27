@@ -1,11 +1,13 @@
 package handler
 
 import (
+	"encoding/json"
 	"fmt"
 	"ggb_server/internal/app/model"
 	"ggb_server/internal/app/schema"
 	"ggb_server/internal/config"
 	"ggb_server/internal/pkg/workflow"
+	"ggb_server/internal/pkg/workflow/aiModule"
 	"ggb_server/internal/repository"
 	"ggb_server/internal/utils"
 	"github.com/gin-gonic/gin"
@@ -72,6 +74,15 @@ func (a AiChat) Chat(c *gin.Context) {
 	flusher := c.Writer.(http.Flusher)
 	w := c.Writer
 	c.Writer.WriteHeader(http.StatusOK)
+	content := aiModule.Content{
+		Type:    "response_head",
+		Step:    "classify",
+		Content: "开始处理请求",
+	}
+	data, _ := json.Marshal(content)
+	resData := "\"data\":{" + string(data) + "}"
+	fmt.Fprintf(w, "data: %s\n\n", resData)
+	flusher.Flush()
 	processor := workflow.NewProcess(chatRequest.Message, chatRequest.ImageUrl, flusher, w, c.Request.Context())
 	err = processor.StartProcess(GetDB(c), message)
 	if err != nil {
