@@ -80,7 +80,7 @@ func (a AiChat) Chat(c *gin.Context) {
 		Content: "开始处理请求",
 	}
 	data, _ := json.Marshal(content)
-	resData := "\"data\"" + string(data)
+	resData := "{\"data\"" + string(data) + "}"
 	fmt.Fprintf(w, "data: %s\n\n", resData)
 	flusher.Flush()
 	processor := workflow.NewProcess(chatRequest.Message, chatRequest.ImageUrl, flusher, w, c.Request.Context())
