@@ -119,14 +119,15 @@ func (a AiChat) CreateConversation(c *gin.Context) {
 		})
 		return
 	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data": schema.CreateConversationResponse{
-			ID:    session.ID,
-			Title: session.Title,
-		},
-	})
+	userId, err := strconv.Atoi(session.UserID)
+	resultConversation := &schema.ConversationInfo{
+		ID:        session.ID,
+		Title:     session.Title,
+		CreatorID: uint(userId),
+		UpdatedAt: session.UpdatedAt.Format("2006-01-02 15:04:05"),
+		CreatedAt: session.CreatedAt.Format("2006-01-02 15:04:05"),
+	}
+	c.JSON(http.StatusOK, resultConversation)
 }
 
 func getUserIDFromToken(c *gin.Context) (string, error) {
