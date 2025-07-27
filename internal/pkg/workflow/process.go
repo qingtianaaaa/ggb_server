@@ -187,6 +187,9 @@ func (p *Process) doClassification() (string, map[string]string, error) {
 	if err != nil {
 		return "", nil, err
 	}
+	if classifyRes["类型"] == string(consts.Other) || classifyRes["类型"] == string(consts.Other) {
+		return "", nil, errors.New("classification result error")
+	}
 	return res.Content, classifyRes, nil
 }
 
