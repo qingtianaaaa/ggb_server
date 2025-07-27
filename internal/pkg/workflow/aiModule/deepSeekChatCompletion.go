@@ -295,7 +295,7 @@ func writeSSEEvent(w io.Writer, flusher http.Flusher, data string) {
 	if flusher == nil || w == nil {
 		return
 	}
-	data = "\"data\":{" + data + "}"
+	data = "\"data\":" + data
 	fmt.Fprintf(w, "data: %s\n\n", data)
 	flusher.Flush()
 }
