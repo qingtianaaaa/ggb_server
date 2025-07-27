@@ -9,7 +9,7 @@ type Type string
 const (
 	Classify      Type = "classify"
 	Reasoning     Type = "reasoning"
-	OutputContent Type = "outputContent"
+	OutputContent Type = "element"
 	Element       Type = "element"
 	Error         Type = "error"
 	Complete      Type = "complete"

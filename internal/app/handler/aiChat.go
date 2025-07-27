@@ -88,6 +88,15 @@ func (a AiChat) Chat(c *gin.Context) {
 	if err != nil {
 		log.Println("[error] occurred when processing: ", err)
 	}
+	content = aiModule.Content{
+		Type:    "complete",
+		Step:    "complete",
+		Content: "complete",
+	}
+	data, _ = json.Marshal(content)
+	resData = "{\"data\"" + string(data) + "}"
+	fmt.Fprintf(w, "data: %s\n\n", resData)
+	flusher.Flush()
 }
 
 func (a AiChat) CreateConversation(c *gin.Context) {

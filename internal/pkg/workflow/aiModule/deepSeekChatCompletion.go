@@ -136,7 +136,7 @@ func (g ChatCompletionClient) ChatCompletion() (Content, error) {
 			content = filterHTML(content)
 		}
 		formatContent := Content{
-			Type:    OutputContent,
+			Type:    HTMLCode,
 			Step:    g.ProcessStep,
 			Content: content,
 		}
