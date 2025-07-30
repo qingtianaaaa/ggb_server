@@ -532,7 +532,6 @@ var parameters = {"appName": "classic", "width": "600", "height": "500", "shocon
 每个元素对应一个按钮，点击按钮后，图形出现或消失，用<details>标签将每种元素的按钮板块折叠
 页面初始化时使用ggbApp.setVisible()隐藏一部分元素，保证可视化界面的整洁
 如果有需要动态调整的部分使用滑动条控制，并确保滑动条变化时图像可以实时变化
-最后设置一个开始按钮，使得图形可以在设置的滑块范围内动态变化，点击按钮开始运动，再点击停止，并且可以调整动画速度
 初始化参数中不要使用materialid， filename，base64
 不要设置全局变量ggbApp，只在appletOnLoad 中设置 window.ggbApp = api，后续都使用ggbApp操作Geogebra 的 API
 GeoGebra 命令执行使用ggbApp.evalCommand('')方法，单个命令执行，命令不使用中文名称，记住要思考每个命令是否存在，使用方式是否正确。
