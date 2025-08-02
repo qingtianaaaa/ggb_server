@@ -19,6 +19,7 @@ type LoginResponse struct {
 
 type UserInfo struct {
 	ID               uint   `json:"id"`
+	UserId           string `json:"userId"`
 	Username         string `json:"username"`
 	Email            string `json:"email"`
 	FreeMessageCount int    `json:"freeMessageCount"`

@@ -12,7 +12,8 @@ type CreateConversationResponse struct {
 type ConversationInfo struct {
 	ID        uint   `json:"id"`
 	Title     string `json:"title"`
-	CreatorID uint   `json:"creator_id"`
+	UserId    string `json:"user_id"`
+	UserPK    uint   `json:"user_pk"`
 	CreatedAt string `json:"created_at"`
 	UpdatedAt string `json:"updated_at"`
 }

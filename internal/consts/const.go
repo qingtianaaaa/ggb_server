@@ -7,6 +7,9 @@ type DeepSeekModel string
 type StepFunModel string
 type DouBaoModel string
 type ProblemType string
+type IdentityType int
+type ResourceType int
+type WorkFlowType int
 type Config struct {
 	Extract StepConfig
 	GenGGB  StepConfig
@@ -164,6 +167,19 @@ const (
 	Knowledge   ProblemType = "知识点"
 	Other       ProblemType = "其他"
 	UnknownType ProblemType = "未知"
+
+	User  IdentityType = 0
+	Model IdentityType = 1
+
+	Image         ResourceType = 1
+	Video         ResourceType = 2
+	HTML          ResourceType = 3
+	OtherResource ResourceType = 4
+
+	ExtractElement WorkFlowType = 1
+	GenerateGGB    WorkFlowType = 2
+	GenerateHTML   WorkFlowType = 3
+	OptimizeHTML   WorkFlowType = 4
 )
 
 const (
@@ -176,7 +192,7 @@ const (
 要求：
 1. 准确提取题目文字内容
 2. 根据题目涉及的数学知识点进行分类
-3. 严格按照指定的JSON格式返回结果！！！
+3. 严格按照指定的JSON格式返回结果！！！同时JSON中不能包含LaTeX数学表达式语法
 
 返回的JSON格式：
 {

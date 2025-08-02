@@ -6,8 +6,8 @@ import (
 	"ggb_server/internal/repository"
 	"ggb_server/internal/utils"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"net/http"
-	"time"
 )
 
 type User struct{}
@@ -74,7 +74,9 @@ func (u User) Register(c *gin.Context) {
 	inviteCode := utils.GenerateInviteCode()
 
 	// 创建用户
+	uid, _ := uuid.NewUUID()
 	user := &model.User{
+		UserId:           uid.String(),
 		Username:         req.Username,
 		Email:            req.Email,
 		Password:         hashedPassword,
@@ -142,7 +144,7 @@ func (u User) Login(c *gin.Context) {
 	}
 
 	// 生成JWT token
-	token, err := utils.GenerateToken(uint(user.ID), user.Username)
+	token, err := utils.GenerateToken(user.UserId, user.Username)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, schema.ApiResponse{
 			Success: false,
@@ -157,6 +159,7 @@ func (u User) Login(c *gin.Context) {
 	// 返回用户信息
 	userInfo := schema.UserInfo{
 		ID:               user.ID,
+		UserId:           user.UserId,
 		Username:         user.Username,
 		Email:            user.Email,
 		FreeMessageCount: user.FreeMessageCount,
@@ -177,49 +180,11 @@ func (u User) Logout(c *gin.Context) {
 }
 
 func (u User) CheckLogin(c *gin.Context) {
-	// 从请求头获取token
-	token := c.GetHeader("Authorization")
-	if token == "" {
-		c.JSON(http.StatusUnauthorized, schema.ApiResponse{
-			Success: false,
-			Error:   "未提供认证token",
-		})
-		return
-	}
-
-	// 移除Bearer前缀
-	if len(token) > 7 && token[:7] == "Bearer " {
-		token = token[7:]
-	}
-
-	// 解析token
-	claims, err := utils.ParseToken(token)
+	user, err := GetUserFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, schema.ApiResponse{
+		c.JSON(http.StatusBadRequest, schema.ApiResponse{
 			Success: false,
-			Error:   "token无效",
-		})
-		return
-	}
-
-	// 检查token是否过期
-	if claims.ExpiresAt < time.Now().Unix() {
-		c.JSON(http.StatusUnauthorized, schema.ApiResponse{
-			Success: false,
-			Error:   "token已过期",
-		})
-		return
-	}
-
-	db := GetDB(c)
-	userRepo := repository.NewUserRepository()
-
-	// 获取用户信息
-	user, err := userRepo.GetById(db, int64(claims.UserID))
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, schema.ApiResponse{
-			Success: false,
-			Error:   "用户不存在",
+			Error:   err.Error(),
 		})
 		return
 	}
@@ -259,33 +224,7 @@ func (u User) VerifyVerificationCode(c *gin.Context) {
 }
 
 func (u User) GenerateInviteCode(c *gin.Context) {
-	// 从token中获取用户信息
-	token := c.GetHeader("Authorization")
-	if token == "" {
-		c.JSON(http.StatusUnauthorized, schema.ApiResponse{
-			Success: false,
-			Error:   "未提供认证token",
-		})
-		return
-	}
-
-	if len(token) > 7 && token[:7] == "Bearer " {
-		token = token[7:]
-	}
-
-	claims, err := utils.ParseToken(token)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, schema.ApiResponse{
-			Success: false,
-			Error:   "token无效",
-		})
-		return
-	}
-
-	db := GetDB(c)
-	userRepo := repository.NewUserRepository()
-
-	user, err := userRepo.GetById(db, int64(claims.UserID))
+	user, err := GetUserFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, schema.ApiResponse{
 			Success: false,

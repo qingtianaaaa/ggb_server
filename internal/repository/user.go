@@ -8,6 +8,7 @@ import (
 
 type UserRepository interface {
 	Generic[model.User]
+	GetByUserId(db *gorm.DB, userId string) (*model.User, error)
 	GetByUsername(db *gorm.DB, username string) (*model.User, error)
 	GetByEmail(db *gorm.DB, email string) (*model.User, error)
 	GetByInviteCode(db *gorm.DB, inviteCode string) (*model.User, error)
@@ -20,6 +21,12 @@ type UserRepo struct {
 
 func NewUserRepository() UserRepository {
 	return &UserRepo{}
+}
+
+func (r *UserRepo) GetByUserId(db *gorm.DB, userId string) (*model.User, error) {
+	var user model.User
+	err := db.Where("user_id = ? AND is_del = ?", userId, false).First(&user).Error
+	return &user, err
 }
 
 func (r *UserRepo) GetByUsername(db *gorm.DB, username string) (*model.User, error) {

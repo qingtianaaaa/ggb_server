@@ -24,8 +24,7 @@ func AddPath(e *gin.Engine) {
 		return
 	}
 	e.Static(config.Cfg.Static.Path, uploadDir)
-
-	e.LoadHTMLGlob("static/ui/*")
+	e.LoadHTMLGlob(filepath.Join(rootPath, "static/ui/*.html"))
 	e.GET("/", func(c *gin.Context) {
 		c.HTML(200, "index.html", gin.H{})
 	})
@@ -43,7 +42,7 @@ func AddMiddleware(e *gin.Engine) {
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recovery())
 	e.Use(middleware.DBMiddleware(database.GetDB()))
-	//e.Use(middleware.JWTAuthMiddleware())
+	e.Use(middleware.JWTAuthMiddleware())
 }
 
 func aiChatModule(r *gin.RouterGroup) {

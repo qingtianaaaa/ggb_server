@@ -6,6 +6,7 @@ import (
 	"ggb_server/internal/app/model"
 	"ggb_server/internal/app/schema"
 	"ggb_server/internal/config"
+	"ggb_server/internal/consts"
 	"ggb_server/internal/pkg/workflow"
 	"ggb_server/internal/pkg/workflow/aiModule"
 	"ggb_server/internal/repository"
@@ -58,13 +59,21 @@ func (a AiChat) Chat(c *gin.Context) {
 		return
 	}
 
+	user, err := GetUserFromContext(c)
+	if err != nil {
+		c.JSON(400, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
 	c.Writer.Header().Set("Content-Type", "text/event-stream")
 	c.Writer.Header().Set("Cache-Control", "no-cache")
 	c.Writer.Header().Set("Connection", "keep-alive")
 	c.Writer.Header().Set("Transfer-Encoding", "chunked")
 	c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 
-	message, err := insertMessage(GetDB(c), chatRequest)
+	message, err := insertMessage(GetDB(c), chatRequest, user)
 	if err != nil {
 		c.JSON(500, gin.H{
 			"error": err,
@@ -101,12 +110,11 @@ func (a AiChat) CreateConversation(c *gin.Context) {
 		return
 	}
 
-	// 从JWT token中获取用户ID
-	userID, err := getUserIDFromToken(c)
+	user, err := GetUserFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
-			"error":   "用户未认证",
+			"error":   err.Error(),
 		})
 		return
 	}
@@ -117,7 +125,7 @@ func (a AiChat) CreateConversation(c *gin.Context) {
 	// 创建新的session
 	session := &model.Session{
 		Title:            req.Title,
-		UserID:           userID,
+		UserID:           user.UserId,
 		MessageCount:     0,
 		FreeMessageCount: 100, // 默认免费消息额度
 		IsDel:            0,
@@ -131,58 +139,23 @@ func (a AiChat) CreateConversation(c *gin.Context) {
 		})
 		return
 	}
-	userId, err := strconv.Atoi(session.UserID)
 	resultConversation := &schema.ConversationInfo{
 		ID:        session.ID,
 		Title:     session.Title,
-		CreatorID: uint(userId),
+		UserId:    user.UserId,
+		UserPK:    user.ID,
 		UpdatedAt: session.UpdatedAt.Format("2006-01-02 15:04:05"),
 		CreatedAt: session.CreatedAt.Format("2006-01-02 15:04:05"),
 	}
 	c.JSON(http.StatusOK, resultConversation)
 }
 
-func getUserIDFromToken(c *gin.Context) (string, error) {
-	token := c.GetHeader("Authorization")
-	if token == "" {
-		return "", fmt.Errorf("未提供认证token")
-	}
-
-	// 移除Bearer前缀
-	if len(token) > 7 && token[:7] == "Bearer " {
-		token = token[7:]
-	}
-
-	// 解析token
-	claims, err := utils.ParseToken(token)
-	if err != nil {
-		return "", err
-	}
-
-	// 检查token是否过期
-	if claims.ExpiresAt < time.Now().Unix() {
-		return "", fmt.Errorf("token已过期")
-	}
-
-	// 从token中获取用户信息
-	db := GetDB(c)
-	userRepo := repository.NewUserRepository()
-	user, err := userRepo.GetById(db, int64(claims.UserID))
-	if err != nil {
-		return "", fmt.Errorf("用户不存在")
-	}
-
-	// 使用用户名作为UserID，因为Session模型中的UserID是string类型
-	return user.Username, nil
-}
-
 func (a AiChat) GetConversations(c *gin.Context) {
-	// 从JWT token中获取用户ID
-	userID, err := getUserIDFromToken(c)
+	user, err := GetUserFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
-			"error":   "用户未认证",
+			"error":   err.Error(),
 		})
 		return
 	}
@@ -205,7 +178,7 @@ func (a AiChat) GetConversations(c *gin.Context) {
 	sessionRepo := repository.NewSessionRepository[model.Session]()
 
 	// 获取用户的对话列表
-	sessions, err := sessionRepo.GetByUserID(db, userID, page, pageSize)
+	sessions, err := sessionRepo.GetByUserID(db, user.UserId, page, pageSize)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -215,7 +188,7 @@ func (a AiChat) GetConversations(c *gin.Context) {
 	}
 
 	// 获取总数
-	_, err = sessionRepo.CountByUserID(db, userID)
+	_, err = sessionRepo.CountByUserID(db, user.UserId)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -227,26 +200,27 @@ func (a AiChat) GetConversations(c *gin.Context) {
 	// 转换为响应格式
 	conversations := make([]schema.ConversationInfo, len(sessions))
 	for i, session := range sessions {
-		userid, _ := strconv.Atoi(session.UserID)
 		conversations[i] = schema.ConversationInfo{
 			ID:        session.ID,
 			Title:     session.Title,
-			CreatorID: uint(userid),
 			CreatedAt: session.CreatedAt.Format("2006-01-02 15:04:05"),
 			UpdatedAt: session.UpdatedAt.Format("2006-01-02 15:04:05"),
 		}
 	}
 
-	c.JSON(http.StatusOK, conversations)
+	c.JSON(http.StatusOK, gin.H{
+		"userId":        user.UserId,
+		"userPK":        user.ID,
+		"conversations": conversations,
+	})
 }
 
 func (a AiChat) GetConversation(c *gin.Context) {
-	// 从JWT token中获取用户ID
-	userID, err := getUserIDFromToken(c)
+	userID, err := GetUserIdFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
-			"error":   "用户未认证",
+			"error":   err.Error(),
 		})
 		return
 	}
@@ -306,12 +280,11 @@ func (a AiChat) GetConversation(c *gin.Context) {
 }
 
 func (a AiChat) DeleteConversation(c *gin.Context) {
-	// 从JWT token中获取用户ID
-	userID, err := getUserIDFromToken(c)
+	userID, err := GetUserIdFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
-			"error":   "用户未认证",
+			"error":   err.Error(),
 		})
 		return
 	}
@@ -373,13 +346,13 @@ func (a AiChat) DeleteConversation(c *gin.Context) {
 	})
 }
 
-func insertMessage(db *gorm.DB, chatRequest schema.ChatRequest) (*model.Message, error) {
+func insertMessage(db *gorm.DB, chatRequest schema.ChatRequest, user *model.User) (*model.Message, error) {
 	message := &model.Message{
-		ParentID:  uint(chatRequest.ParentId),
+		ParentID:  chatRequest.ParentId,
 		SessionID: chatRequest.SessionId,
-		UserID:    utils.GenerateRandomString(36),
+		UserID:    user.UserId,
 		Message:   chatRequest.Message,
-		Identity:  0,
+		Identity:  int(consts.User),
 	}
 	messageRepo := repository.NewMessageRepository[model.Message]()
 	if err := messageRepo.Create(db, message); err != nil {
@@ -389,7 +362,7 @@ func insertMessage(db *gorm.DB, chatRequest schema.ChatRequest) (*model.Message,
 		resource := model.Resource{
 			SessionID: chatRequest.SessionId,
 			MessageID: message.ID,
-			Type:      1,
+			Type:      int(consts.Image),
 			URL:       utils.ProcessUrl(chatRequest.ImageUrl, config.Cfg.Static.Path),
 		}
 		return message, repository.NewResourceRepository[model.Resource]().Create(db, &resource)

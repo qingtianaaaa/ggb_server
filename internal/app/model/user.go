@@ -4,6 +4,7 @@ import "time"
 
 type User struct {
 	Model
+	UserId           string     `json:"user_id"`
 	Username         string     `gorm:"size:50;uniqueIndex;not null;comment:用户名" json:"username"`
 	Email            string     `gorm:"size:100;uniqueIndex;comment:邮箱" json:"email"`
 	Password         string     `gorm:"size:255;not null;comment:密码" json:"-"`

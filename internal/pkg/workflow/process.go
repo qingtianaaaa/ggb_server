@@ -43,77 +43,59 @@ func NewProcess(userMessage string, imgUrl string, flusher http.Flusher, w io.Wr
 	}
 }
 
+func insertWorkFlow(db *gorm.DB, rootId, parentId *uint, sessionId, messageId uint, workflowType consts.WorkFlowType, input, output string) (*model.Workflow, error) {
+	workflow := &model.Workflow{
+		SessionID: sessionId,
+		MessageID: messageId,
+		Type:      int(workflowType),
+		Input:     input,
+		Output:    output,
+	}
+	if rootId != nil {
+		workflow.RootID = *rootId
+	}
+	if parentId != nil {
+		workflow.ParentID = *parentId
+	}
+	err := repository.NewWorkflowRepository[model.Workflow]().Create(db, workflow)
+	return workflow, err
+}
+
 func (p *Process) StartProcess(db *gorm.DB, message *model.Message) error {
 	rawRes, processedRes, err := p.Classify()
-	workflow1 := model.Workflow{
-		SessionID: message.SessionID,
-		MessageID: message.ID,
-		Type:      1,
-		Input:     message.Message,
-		Output:    rawRes,
-	}
+
+	workflow1, err := insertWorkFlow(db, nil, nil, message.SessionID, message.ID, consts.ExtractElement, message.Message, rawRes)
 	if err != nil {
 		return err
 	}
-	err = repository.NewWorkflowRepository[model.Workflow]().Create(db, &workflow1)
-	if err != nil {
-		return err
-	}
+
 	elements, err := p.ExtractElementsStream(processedRes)
 	if err != nil {
 		return err
 	}
 	input, _ := json.Marshal(processedRes)
-	workflow2 := model.Workflow{
-		SessionID: message.SessionID,
-		MessageID: message.ID,
-		RootID:    workflow1.ID,
-		ParentID:  workflow1.ID,
-		Type:      2,
-		Input:     string(input),
-		Output:    elements,
-	}
-	err = repository.NewWorkflowRepository[model.Workflow]().Create(db, &workflow2)
+
+	workflow2, err := insertWorkFlow(db, &workflow1.ID, &workflow1.ID, message.SessionID, message.ID, consts.GenerateGGB, string(input), elements)
 	if err != nil {
 		return err
 	}
+
 	commands, err := p.GenerateGGB(elements)
 	if err != nil {
 		return err
 	}
-	workflow4ParentId := workflow2.ID
+	//workflow4ParentId := workflow2.ID
 	if commands != "" {
-		workflow3 := model.Workflow{
-			SessionID: message.SessionID,
-			MessageID: message.ID,
-			RootID:    workflow1.ID,
-			ParentID:  workflow2.ID,
-			Type:      3,
-			Input:     elements,
-			Output:    commands,
-		}
-		err = repository.NewWorkflowRepository[model.Workflow]().Create(db, &workflow3)
+		_, err = insertWorkFlow(db, &workflow1.ID, &workflow2.ID, message.SessionID, message.ID, consts.GenerateHTML, elements, commands)
 		if err != nil {
 			return err
 		}
-		workflow4ParentId = workflow3.ID
+		//workflow4ParentId = workflow3.ID
 	} else {
 		commands = elements
 	}
-	res, err := p.GenerateHTML(commands)
-	if err != nil {
-		return err
-	}
-	workflow4 := model.Workflow{
-		SessionID: message.SessionID,
-		MessageID: message.ID,
-		RootID:    workflow1.ID,
-		ParentID:  workflow4ParentId,
-		Type:      4,
-		Input:     elements,
-		Output:    res,
-	}
-	err = repository.NewWorkflowRepository[model.Workflow]().Create(db, &workflow4)
+	_, err = p.GenerateHTML(commands)
+	//workflow4, err := insertWorkFlow(db, &workflow1.ID, &workflow4ParentId, message.SessionID, message.ID, consts.OptimizeHTML, elements, res)
 	return err
 }
 
