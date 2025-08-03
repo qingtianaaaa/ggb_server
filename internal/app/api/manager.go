@@ -38,6 +38,7 @@ func AddPath(e *gin.Engine) {
 }
 
 func AddMiddleware(e *gin.Engine) {
+	e.Use(middleware.SetHost())
 	e.Use(middleware.CORSMiddleware())
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recovery())

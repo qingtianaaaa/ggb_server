@@ -21,6 +21,7 @@ type StepConfig struct {
 }
 
 var (
+	URLPrefix          = ""
 	DeepSeekApiKey     = config.Cfg.AIModel.DeepSeek.ApiKey
 	StepFunApiKey      = config.Cfg.AIModel.StepFun.ApiKey
 	DouBaoApiKey       = config.Cfg.AIModel.DouBao.ApiKey
@@ -147,7 +148,7 @@ const (
 
 	TWODGenerateGGB   ProcessStep = "2DGenerateGGB"
 	ThreeDGenerateGGB ProcessStep = "3DGenerateGGB"
-	FuncGenGGB        ProcessStep = "FuncGenGGB"
+	FuncGenGGB        ProcessStep = "FuncGenerateGGB"
 
 	TwoDGenerateHTML      ProcessStep = "2DGenerateHTML"
 	ThreeDGenerateHTML    ProcessStep = "3DGenerateHTML"
@@ -176,10 +177,11 @@ const (
 	HTML          ResourceType = 3
 	OtherResource ResourceType = 4
 
-	ExtractElement WorkFlowType = 1
-	GenerateGGB    WorkFlowType = 2
-	GenerateHTML   WorkFlowType = 3
-	OptimizeHTML   WorkFlowType = 4
+	IntentRecognition WorkFlowType = 0
+	ExtractElement    WorkFlowType = 1
+	GenerateGGB       WorkFlowType = 2
+	GenerateHTML      WorkFlowType = 3
+	OptimizeHTML      WorkFlowType = 4
 )
 
 const (

@@ -26,6 +26,7 @@ type DouBaoChatCompletion struct {
 
 	douBaoClient *arkruntime.Client
 	ThinkingType model.ThinkingType
+	UserInfo     *UserInfo
 }
 
 func NewClient() *arkruntime.Client {
@@ -70,6 +71,9 @@ func (d DouBaoChatCompletion) ChatCompletion() (Content, error) {
 		fullResponse.WriteString(content)
 		writeSSEEvent(d.StreamWriter, d.Flusher, content)
 	}
+	if fullResponse.Len() > 0 {
+		err = insertAiMessage(d.UserInfo, fullResponse.String(), false, d.ProcessStep)
+	}
 	return Content{
 		Type:    OutputContent,
 		Content: fullResponse.String(),
@@ -107,7 +111,7 @@ func (d DouBaoChatCompletion) ChatCompletionStream() (Content, error) {
 	defer stream.Close()
 
 	fullResponse := strings.Builder{}
-
+	reasoningResponse := strings.Builder{}
 	recvTimeout := 10 * time.Second
 	recvTimer := time.NewTimer(recvTimeout)
 	defer recvTimer.Stop()
@@ -141,6 +145,7 @@ func (d DouBaoChatCompletion) ChatCompletionStream() (Content, error) {
 				Content: reasoningContent,
 			}
 			fmt.Print(reasoningContent)
+			reasoningResponse.WriteString(reasoningContent)
 			jsonBody, _ := json.Marshal(formatContent)
 			writeSSEEvent(d.StreamWriter, d.Flusher, string(jsonBody))
 		}
@@ -157,6 +162,14 @@ func (d DouBaoChatCompletion) ChatCompletionStream() (Content, error) {
 			fullResponse.WriteString(content)
 		}
 	}
+
+	if reasoningResponse.Len() > 0 {
+		err = insertAiMessage(d.UserInfo, reasoningResponse.String(), true, d.ProcessStep)
+	}
+	if fullResponse.Len() > 0 {
+		err = insertAiMessage(d.UserInfo, fullResponse.String(), false, d.ProcessStep)
+	}
+
 	return Content{
 		Type:    OutputContent,
 		Content: fullResponse.String(),

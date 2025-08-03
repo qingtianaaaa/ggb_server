@@ -38,12 +38,8 @@ func (a AiChat) Upload(c *gin.Context) {
 			"message": err.Error(),
 		})
 	}
-	protocol := "http"
-	if c.Request.TLS != nil {
-		protocol = "https"
-	}
 	c.JSON(200, gin.H{
-		"imageUrl": fmt.Sprintf("%s://%s/%s/%s", protocol, c.Request.Host, config.Cfg.Static.Path, newFileName),
+		"imageUrl": fmt.Sprintf("%s/%s/%s", consts.URLPrefix, config.Cfg.Static.Path, newFileName),
 	})
 }
 
@@ -142,8 +138,6 @@ func (a AiChat) CreateConversation(c *gin.Context) {
 	resultConversation := &schema.ConversationInfo{
 		ID:        session.ID,
 		Title:     session.Title,
-		UserId:    user.UserId,
-		UserPK:    user.ID,
 		UpdatedAt: session.UpdatedAt.Format("2006-01-02 15:04:05"),
 		CreatedAt: session.CreatedAt.Format("2006-01-02 15:04:05"),
 	}
@@ -198,33 +192,24 @@ func (a AiChat) GetConversations(c *gin.Context) {
 	}
 
 	// 转换为响应格式
-	conversations := make([]schema.ConversationInfo, len(sessions))
-	for i, session := range sessions {
-		conversations[i] = schema.ConversationInfo{
-			ID:        session.ID,
-			Title:     session.Title,
-			CreatedAt: session.CreatedAt.Format("2006-01-02 15:04:05"),
-			UpdatedAt: session.UpdatedAt.Format("2006-01-02 15:04:05"),
-		}
-	}
+	//conversations := make([]schema.ConversationInfo, len(sessions))
+	//for i, session := range sessions {
+	//	conversations[i] = schema.ConversationInfo{
+	//		ID:        session.ID,
+	//		Title:     session.Title,
+	//		CreatedAt: session.CreatedAt.Format("2006-01-02 15:04:05"),
+	//		UpdatedAt: session.UpdatedAt.Format("2006-01-02 15:04:05"),
+	//	}
+	//}
 
 	c.JSON(http.StatusOK, gin.H{
 		"userId":        user.UserId,
 		"userPK":        user.ID,
-		"conversations": conversations,
+		"conversations": sessions,
 	})
 }
 
 func (a AiChat) GetConversation(c *gin.Context) {
-	userID, err := GetUserIdFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"success": false,
-			"error":   err.Error(),
-		})
-		return
-	}
-
 	// 获取对话ID
 	conversationID := c.Param("id")
 	if conversationID == "" {
@@ -234,47 +219,37 @@ func (a AiChat) GetConversation(c *gin.Context) {
 		})
 		return
 	}
-
-	id, err := strconv.ParseUint(conversationID, 10, 32)
+	cId, err := strconv.Atoi(conversationID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"error":   "无效的对话ID",
+			"error":   err.Error(),
 		})
 		return
 	}
 
 	db := GetDB(c)
-	sessionRepo := repository.NewSessionRepository[model.Session]()
-
-	// 获取对话详情
-	session, err := sessionRepo.GetById(db, int64(id))
+	session, err := repository.NewSessionRepository[model.Session]().GetById(db, cId)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
+		c.JSON(500, gin.H{
 			"success": false,
-			"error":   "对话不存在",
+			"error":   err.Error(),
 		})
 		return
 	}
-
-	// 检查权限（只能查看自己的对话）
-	if session.UserID != userID {
-		c.JSON(http.StatusForbidden, gin.H{
+	messages, err := repository.NewMessageRepository[model.Message]().GetBySessionID(db, session.ID)
+	if err != nil {
+		c.JSON(500, gin.H{
 			"success": false,
-			"error":   "无权限访问此对话",
+			"error":   err.Error(),
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data": schema.GetConversationResponse{
-			ID:               session.ID,
-			Title:            session.Title,
-			MessageCount:     session.MessageCount,
-			FreeMessageCount: session.FreeMessageCount,
-			CreatedAt:        session.CreatedAt.Format("2006-01-02 15:04:05"),
-			UpdatedAt:        session.UpdatedAt.Format("2006-01-02 15:04:05"),
+		"data": map[string]any{
+			"message": messages,
 		},
 	})
 }
@@ -299,11 +274,11 @@ func (a AiChat) DeleteConversation(c *gin.Context) {
 		return
 	}
 
-	id, err := strconv.ParseUint(conversationID, 10, 32)
+	id, err := strconv.Atoi(conversationID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"error":   "无效的对话ID",
+			"error":   err.Error(),
 		})
 		return
 	}
@@ -312,7 +287,7 @@ func (a AiChat) DeleteConversation(c *gin.Context) {
 	sessionRepo := repository.NewSessionRepository[model.Session]()
 
 	// 获取对话详情
-	session, err := sessionRepo.GetById(db, int64(id))
+	session, err := sessionRepo.GetById(db, id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"success": false,

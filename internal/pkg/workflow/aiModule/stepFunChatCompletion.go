@@ -22,6 +22,8 @@ type StepFunChatCompletion struct {
 	Flusher      http.Flusher
 	StreamWriter io.Writer
 	ImgUrl       string
+
+	UserInfo *UserInfo
 }
 
 func (s StepFunChatCompletion) ChatCompletion() (Content, error) {
@@ -196,7 +198,7 @@ func (s StepFunChatCompletion) ChatCompletionStream() (Content, error) {
 	}
 
 	fullResponse := strings.Builder{}
-
+	reasoningResponse := strings.Builder{}
 	reader := bufio.NewReader(resp.Body)
 
 	recvTimeout := 10 * time.Second
@@ -243,9 +245,9 @@ func (s StepFunChatCompletion) ChatCompletionStream() (Content, error) {
 					Step:    s.ProcessStep,
 					Content: reasoningContent,
 				}
+				reasoningResponse.WriteString(reasoningContent)
 				jsonBody, _ := json.Marshal(formatContent)
 				writeSSEEvent(s.StreamWriter, s.Flusher, string(jsonBody))
-				//fullResponse.WriteString(reasoningContent)
 			}
 
 			if len(chunk.Choices) > 0 && chunk.Choices[0].Delta.Content != "" {
@@ -262,6 +264,14 @@ func (s StepFunChatCompletion) ChatCompletionStream() (Content, error) {
 			}
 		}
 	}
+
+	if reasoningResponse.Len() > 0 {
+		err = insertAiMessage(s.UserInfo, reasoningResponse.String(), true, s.ProcessStep)
+	}
+	if fullResponse.Len() > 0 {
+		err = insertAiMessage(s.UserInfo, fullResponse.String(), false, s.ProcessStep)
+	}
+
 	return Content{
 		Type:    OutputContent,
 		Content: fullResponse.String(),

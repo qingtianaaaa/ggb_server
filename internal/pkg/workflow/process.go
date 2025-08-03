@@ -31,6 +31,8 @@ type Process struct {
 	Ctx         context.Context
 
 	config consts.Config
+
+	userInfo *aiModule.UserInfo
 }
 
 func NewProcess(userMessage string, imgUrl string, flusher http.Flusher, w io.Writer, ctx context.Context) *Process {
@@ -43,28 +45,19 @@ func NewProcess(userMessage string, imgUrl string, flusher http.Flusher, w io.Wr
 	}
 }
 
-func insertWorkFlow(db *gorm.DB, rootId, parentId *uint, sessionId, messageId uint, workflowType consts.WorkFlowType, input, output string) (*model.Workflow, error) {
-	workflow := &model.Workflow{
-		SessionID: sessionId,
-		MessageID: messageId,
-		Type:      int(workflowType),
-		Input:     input,
-		Output:    output,
-	}
-	if rootId != nil {
-		workflow.RootID = *rootId
-	}
-	if parentId != nil {
-		workflow.ParentID = *parentId
-	}
-	err := repository.NewWorkflowRepository[model.Workflow]().Create(db, workflow)
-	return workflow, err
-}
-
 func (p *Process) StartProcess(db *gorm.DB, message *model.Message) error {
-	rawRes, processedRes, err := p.Classify()
+	if message == nil {
+		return errors.New("invalid message")
+	}
+	p.userInfo = &aiModule.UserInfo{
+		DB:            db,
+		UserId:        message.UserID,
+		SessionId:     message.SessionID,
+		UserMessageId: message.ID,
+	}
 
-	workflow1, err := insertWorkFlow(db, nil, nil, message.SessionID, message.ID, consts.ExtractElement, message.Message, rawRes)
+	rawRes, processedRes, err := p.Classify()
+	workflow1, err := p.insertWorkFlow(nil, nil, consts.IntentRecognition, message.Message, rawRes)
 	if err != nil {
 		return err
 	}
@@ -74,8 +67,7 @@ func (p *Process) StartProcess(db *gorm.DB, message *model.Message) error {
 		return err
 	}
 	input, _ := json.Marshal(processedRes)
-
-	workflow2, err := insertWorkFlow(db, &workflow1.ID, &workflow1.ID, message.SessionID, message.ID, consts.GenerateGGB, string(input), elements)
+	workflow2, err := p.insertWorkFlow(&workflow1.ID, &workflow1.ID, consts.ExtractElement, string(input), elements)
 	if err != nil {
 		return err
 	}
@@ -84,18 +76,13 @@ func (p *Process) StartProcess(db *gorm.DB, message *model.Message) error {
 	if err != nil {
 		return err
 	}
-	//workflow4ParentId := workflow2.ID
-	if commands != "" {
-		_, err = insertWorkFlow(db, &workflow1.ID, &workflow2.ID, message.SessionID, message.ID, consts.GenerateHTML, elements, commands)
-		if err != nil {
-			return err
-		}
-		//workflow4ParentId = workflow3.ID
-	} else {
-		commands = elements
+	workflow3, err := p.insertWorkFlow(&workflow1.ID, &workflow2.ID, consts.GenerateGGB, elements, commands)
+	if err != nil {
+		return err
 	}
-	_, err = p.GenerateHTML(commands)
-	//workflow4, err := insertWorkFlow(db, &workflow1.ID, &workflow4ParentId, message.SessionID, message.ID, consts.OptimizeHTML, elements, res)
+
+	html, err := p.GenerateHTML(commands)
+	_, err = p.insertWorkFlow(&workflow1.ID, &workflow3.ID, consts.GenerateHTML, elements, html)
 	return err
 }
 
@@ -157,7 +144,7 @@ func (p *Process) doClassification() (string, map[string]string, error) {
 		strings.ToLower("contentType"): string(aiModule.Classify),
 	}
 
-	client := aiModule.NewChatCompletionClient[*aiModule.StepFunChatCompletion](mapping, p.Flusher, p.W)
+	client := aiModule.NewChatCompletionClient[*aiModule.StepFunChatCompletion](mapping, p.Flusher, p.W, p.userInfo)
 	res, err := client.ChatCompletion()
 	if err != nil {
 		log.Printf("type: %v, step: %v, content: %v\n", res.Type, res.Step, res.Content)
@@ -251,7 +238,7 @@ func (p *Process) doExtract(classify map[string]string) (string, error) {
 
 		mapping["model"] = string(consts.StepFuncChat1oTurbo)
 		mapping[strings.ToLower("thinkingType")] = string(arkModel.ThinkingTypeEnabled)
-		client := aiModule.NewChatCompletionClient[*aiModule.StepFunChatCompletion](mapping, p.Flusher, p.W)
+		client := aiModule.NewChatCompletionClient[*aiModule.StepFunChatCompletion](mapping, p.Flusher, p.W, p.userInfo)
 
 		res, err := client.ChatCompletionStream()
 		if err != nil {
@@ -263,7 +250,7 @@ func (p *Process) doExtract(classify map[string]string) (string, error) {
 
 	mapping[strings.ToLower("thinkingType")] = string(arkModel.ThinkingTypeEnabled)
 	var client aiModule.ChatCompletionInterface
-	client = aiModule.NewChatCompletionClient[*aiModule.DouBaoChatCompletion](mapping, p.Flusher, p.W)
+	client = aiModule.NewChatCompletionClient[*aiModule.DouBaoChatCompletion](mapping, p.Flusher, p.W, p.userInfo)
 
 	res, err := client.ChatCompletionStream()
 	if err != nil {
@@ -285,7 +272,7 @@ func (p *Process) doGenGGB(elements string) (string, error) {
 		"message":                      reader.String(),
 		strings.ToLower("processStep"): string(p.config.GenGGB.ProcessStep),
 	}
-	client := aiModule.NewChatCompletionClient[*aiModule.ChatCompletionClient](mapping, p.Flusher, p.W)
+	client := aiModule.NewChatCompletionClient[*aiModule.ChatCompletionClient](mapping, p.Flusher, p.W, p.userInfo)
 	res, err := client.ChatCompletion()
 	if err != nil {
 		log.Printf("type: %v, step: %v, content: %v\n", res.Type, res.Step, res.Content)
@@ -301,7 +288,7 @@ func (p *Process) doGenHTML(command string) (string, error) {
 		"message":                      command,
 		strings.ToLower("processStep"): string(p.config.GenHTML.ProcessStep),
 	}
-	client := aiModule.NewChatCompletionClient[*aiModule.ChatCompletionClient](mapping, p.Flusher, p.W)
+	client := aiModule.NewChatCompletionClient[*aiModule.ChatCompletionClient](mapping, p.Flusher, p.W, p.userInfo)
 	res, err := client.ChatCompletion()
 	if err != nil {
 		log.Printf("type: %v, step: %v, content: %v\n", res.Type, res.Step, res.Content)
@@ -376,4 +363,25 @@ func filterHTML(html string) string {
 	htmlDoc := html[doctypeStart:endPos]
 
 	return htmlDoc
+}
+
+func (p *Process) insertWorkFlow(rootId, parentId *uint, workflowType consts.WorkFlowType, input, output string) (*model.Workflow, error) {
+	if p.userInfo == nil {
+		return nil, fmt.Errorf("userInfo is nil")
+	}
+	workflow := &model.Workflow{
+		SessionID: p.userInfo.SessionId,
+		MessageID: p.userInfo.UserMessageId,
+		Type:      int(workflowType),
+		Input:     model.RawString(input),
+		Output:    model.RawString(output),
+	}
+	if rootId != nil {
+		workflow.RootID = *rootId
+	}
+	if parentId != nil {
+		workflow.ParentID = *parentId
+	}
+	err := repository.NewWorkflowRepository[model.Workflow]().Create(p.userInfo.DB, workflow)
+	return workflow, err
 }

@@ -2,12 +2,12 @@ package aiModule
 
 import (
 	"ggb_server/internal/consts"
+	"gorm.io/gorm"
 )
 
 type Type string
 
 const (
-	Classify      Type = "classify"
 	Reasoning     Type = "reasoning"
 	OutputContent Type = "element"
 	Element       Type = "element"
@@ -28,4 +28,11 @@ type Content struct {
 	RelatedSessionId       int                `json:"related_session_id"`
 	RelatedMessageId       int                `json:"related_message_id"`
 	ParentRelatedMessageId int                `json:"parent_related_message_id"`
+}
+
+type UserInfo struct {
+	DB            *gorm.DB
+	UserId        string
+	SessionId     uint
+	UserMessageId uint
 }

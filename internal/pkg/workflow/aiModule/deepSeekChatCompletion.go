@@ -13,7 +13,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"reflect"
 	"strings"
 	"time"
 )
@@ -26,46 +25,7 @@ type ChatCompletionClient struct {
 	Flusher      http.Flusher
 	StreamWriter io.Writer
 	ContentType  Type
-}
-
-func NewChatCompletionClient[T ChatCompletionInterface](mapping map[string]string, flusher http.Flusher, w io.Writer) T {
-	var zero T
-	elemType := reflect.TypeOf(zero).Elem()
-	clientValue := reflect.New(elemType)
-
-	if flusher != nil {
-		if fField := clientValue.Elem().FieldByName("Flusher"); fField.IsValid() && fField.CanSet() {
-			fField.Set(reflect.ValueOf(flusher))
-		}
-	}
-	if w != nil {
-		if swField := clientValue.Elem().FieldByName("StreamWriter"); swField.IsValid() && swField.CanSet() {
-			swField.Set(reflect.ValueOf(w))
-		}
-	}
-
-	if mapping == nil {
-		return clientValue.Interface().(T)
-	}
-
-	structType := clientValue.Elem().Type()
-	for i := 0; i < structType.NumField(); i++ {
-		fieldType := structType.Field(i)
-		fieldValue := clientValue.Elem().Field(i)
-
-		if fieldType.Type.Kind() == reflect.String && fieldValue.CanSet() {
-			key := strings.ToLower(fieldType.Name)
-			if v, ok := mapping[key]; ok {
-				fieldValue.SetString(v)
-			}
-		}
-	}
-	instance := clientValue.Interface().(T)
-	if db, ok := any(instance).(*DouBaoChatCompletion); ok {
-		db.douBaoClient = NewClient()
-	}
-
-	return instance
+	UserInfo     *UserInfo
 }
 
 func (g ChatCompletionClient) ChatCompletion() (Content, error) {
@@ -150,6 +110,11 @@ func (g ChatCompletionClient) ChatCompletion() (Content, error) {
 		fullResponse.WriteString(content)
 		writeSSEEvent(g.StreamWriter, g.Flusher, string(jsonBody)) //也以流式形式返回前端
 	}
+
+	if fullResponse.Len() > 0 {
+		err = insertAiMessage(g.UserInfo, fullResponse.String(), false, g.ProcessStep)
+	}
+
 	return Content{
 		Type:    OutputContent,
 		Content: fullResponse.String(),
@@ -221,7 +186,7 @@ func (g ChatCompletionClient) ChatCompletionStream() (Content, error) {
 	}
 
 	fullResponse := strings.Builder{}
-
+	reasoningResponse := strings.Builder{}
 	reader := bufio.NewReader(resp.Body)
 
 	recvTimeout := 10 * time.Second
@@ -271,9 +236,9 @@ func (g ChatCompletionClient) ChatCompletionStream() (Content, error) {
 					Content: reasoningContent,
 				}
 				fmt.Print(reasoningContent)
+				reasoningResponse.WriteString(reasoningContent)
 				jsonBody, _ := json.Marshal(formatContent)
 				writeSSEEvent(g.StreamWriter, g.Flusher, string(jsonBody))
-				//fullResponse.WriteString(string(jsonBody))
 			}
 
 			if len(chunk.Choices) > 0 && chunk.Choices[0].Delta.Content != "" {
@@ -290,47 +255,16 @@ func (g ChatCompletionClient) ChatCompletionStream() (Content, error) {
 		}
 	}
 
+	if reasoningResponse.Len() > 0 {
+		err = insertAiMessage(g.UserInfo, reasoningResponse.String(), true, g.ProcessStep)
+	}
+	if fullResponse.Len() > 0 {
+		err = insertAiMessage(g.UserInfo, fullResponse.String(), false, g.ProcessStep)
+	}
+
 	return Content{
 		Type:    OutputContent,
 		Content: fullResponse.String(),
 		Step:    g.ProcessStep,
 	}, nil
-}
-
-func writeSSEEvent(w io.Writer, flusher http.Flusher, data string) {
-	if flusher == nil || w == nil {
-		return
-	}
-	data = "{\"data\":" + data + "}"
-	fmt.Fprintf(w, "data: %s\n\n", data)
-	flusher.Flush()
-}
-
-// filterHTML 从文本中提取完整的HTML代码
-func filterHTML(html string) string {
-	// 查找 <!DOCTYPE html> 的开始位置
-	doctypeStart := strings.Index(html, "<!DOCTYPE html>")
-	if doctypeStart == -1 {
-		// 如果没有 DOCTYPE，尝试查找 <html> 标签
-		htmlStart := strings.Index(html, "<html")
-		if htmlStart == -1 {
-			return html
-		}
-		doctypeStart = htmlStart
-	}
-
-	// 查找 </html> 的结束位置
-	endTag := "</html>"
-	endIdx := strings.Index(html[doctypeStart:], endTag)
-	if endIdx == -1 {
-		return html
-	}
-
-	// 计算结束位置
-	endPos := doctypeStart + endIdx + len(endTag)
-
-	// 提取完整的HTML文档
-	htmlDoc := html[doctypeStart:endPos]
-
-	return htmlDoc
 }
