@@ -16,6 +16,7 @@ import (
 )
 
 var whiteList = map[string]bool{
+	"/health" : true,
 	"/api/register": true,
 	"/api/login":    true,
 	"/static":       true,
