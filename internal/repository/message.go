@@ -28,7 +28,7 @@ func (r *MessageRepo[T]) GetBySessionID(db *gorm.DB, sessionID uint) ([]model.Me
 		//Offset((page - 1) * pageSize).
 		//Limit(pageSize).
 		Preload("AiMessages", func(db *gorm.DB) *gorm.DB {
-			return db.Where("stage != 0").Order("created_at ASC, is_reason DESC")
+			return db.Where("stage IN (1, 3)").Order("created_at ASC, is_reason DESC")
 		}).
 		Preload("Resources").
 		Order("created_at DESC").

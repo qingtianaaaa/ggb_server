@@ -26,7 +26,9 @@ func (r *SessionRepo[T]) GetByUserID(db *gorm.DB, userID string, page, pageSize 
 	var sessions []model.Session
 	err := db.Where("user_id = ? AND is_del = 0", userID).
 		Preload("Messages", func(db *gorm.DB) *gorm.DB {
-			return db.Preload("AiMessages").
+			return db.Preload("AiMessages", func(db *gorm.DB) *gorm.DB {
+				return db.Where("stage IN (1, 3)").Order("created_at ASC, is_reason DESC")
+			}).
 				Preload("Resources").
 				Order("created_at DESC")
 		}).

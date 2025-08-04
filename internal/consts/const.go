@@ -150,8 +150,9 @@ var (
 )
 
 const (
-	DeepSeekChatCompletionUrl string = "https://api.deepseek.com/chat/completions"
-	StepFunChatCompletionUrl  string = "https://api.stepfun.com/v1/chat/completions"
+	DeepSeekChatCompletionUrl             string = "https://api.deepseek.com/chat/completions"
+	DeepSeekTencentCloudChatCompletionUrl string = "https://api.lkeap.cloud.tencent.com/v1/chat/completions"
+	StepFunChatCompletionUrl              string = "https://api.stepfun.com/v1/chat/completions"
 
 	UnknownStep ProcessStep = "unknown"
 	Classify    ProcessStep = "classify"
@@ -175,6 +176,7 @@ const (
 
 	DeepSeekReasoner    DeepSeekModel = "deepseek-reasoner"
 	DeepSeekChat        DeepSeekModel = "deepseek-chat"
+	TencentDeepSeek     DeepSeekModel = "deepseek-v3"
 	StepFuncChat1oTurbo StepFunModel  = "step-1o-turbo-vision"
 	StepFunStep1V8K     StepFunModel  = "step-1v-8k"
 	DouBaoSeed1V6       DouBaoModel   = "doubao-seed-1.6-250615"

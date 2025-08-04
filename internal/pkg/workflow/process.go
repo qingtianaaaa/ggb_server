@@ -270,7 +270,7 @@ func (p *Process) doGenGGB(elements string) (string, error) {
 	reader.WriteString("数学元素: \n")
 	reader.WriteString(filtered)
 	mapping := map[string]string{
-		"model":                        string(consts.DeepSeekChat),
+		"model":                        string(consts.TencentDeepSeek),
 		"message":                      reader.String(),
 		strings.ToLower("processStep"): string(p.config.GenGGB.ProcessStep),
 	}
@@ -280,13 +280,13 @@ func (p *Process) doGenGGB(elements string) (string, error) {
 		log.Printf("type: %v, step: %v, content: %v\n", res.Type, res.Step, res.Content)
 		return "", err
 	}
-	log.Println("\n[gen ggb content]: ", res.Content)
+	log.Print("\n[gen ggb content]: ", res.Content)
 	return res.Content, nil
 }
 
 func (p *Process) doGenHTML(command string) (string, error) {
 	mapping := map[string]string{
-		"model":                        string(consts.DeepSeekChat),
+		"model":                        string(consts.TencentDeepSeek),
 		"message":                      command,
 		strings.ToLower("processStep"): string(p.config.GenHTML.ProcessStep),
 	}
