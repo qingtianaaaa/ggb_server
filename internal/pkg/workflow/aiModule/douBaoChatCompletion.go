@@ -72,7 +72,7 @@ func (d DouBaoChatCompletion) ChatCompletion() (Content, error) {
 		writeSSEEvent(d.StreamWriter, d.Flusher, content)
 	}
 	if fullResponse.Len() > 0 {
-		err = insertAiMessage(d.UserInfo, fullResponse.String(), false, d.ProcessStep)
+		err = insertAiMessage(d.UserInfo, fullResponse.String(), string(d.Model), false, d.ProcessStep)
 	}
 	return Content{
 		Type:    OutputContent,
@@ -164,10 +164,10 @@ func (d DouBaoChatCompletion) ChatCompletionStream() (Content, error) {
 	}
 
 	if reasoningResponse.Len() > 0 {
-		err = insertAiMessage(d.UserInfo, reasoningResponse.String(), true, d.ProcessStep)
+		err = insertAiMessage(d.UserInfo, reasoningResponse.String(), string(d.Model), true, d.ProcessStep)
 	}
 	if fullResponse.Len() > 0 {
-		err = insertAiMessage(d.UserInfo, fullResponse.String(), false, d.ProcessStep)
+		err = insertAiMessage(d.UserInfo, fullResponse.String(), string(d.Model), false, d.ProcessStep)
 	}
 
 	return Content{

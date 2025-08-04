@@ -112,7 +112,7 @@ func (g ChatCompletionClient) ChatCompletion() (Content, error) {
 	}
 
 	if fullResponse.Len() > 0 {
-		err = insertAiMessage(g.UserInfo, fullResponse.String(), false, g.ProcessStep)
+		err = insertAiMessage(g.UserInfo, fullResponse.String(), string(g.Model), false, g.ProcessStep)
 	}
 
 	return Content{
@@ -256,10 +256,10 @@ func (g ChatCompletionClient) ChatCompletionStream() (Content, error) {
 	}
 
 	if reasoningResponse.Len() > 0 {
-		err = insertAiMessage(g.UserInfo, reasoningResponse.String(), true, g.ProcessStep)
+		err = insertAiMessage(g.UserInfo, reasoningResponse.String(), string(g.Model), true, g.ProcessStep)
 	}
 	if fullResponse.Len() > 0 {
-		err = insertAiMessage(g.UserInfo, fullResponse.String(), false, g.ProcessStep)
+		err = insertAiMessage(g.UserInfo, fullResponse.String(), string(g.Model), false, g.ProcessStep)
 	}
 
 	return Content{

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"ggb_server/internal/app/schema"
 	"ggb_server/internal/consts"
 	"io"
@@ -116,6 +117,9 @@ func (s StepFunChatCompletion) ChatCompletion() (Content, error) {
 		jsonBody, _ := json.Marshal(formatContent)
 		fullResponse.WriteString(outputContent)
 		writeSSEEvent(s.StreamWriter, s.Flusher, string(jsonBody)) //也以流式形式返回前端
+	}
+	if fullResponse.Len() > 0 {
+		err = insertAiMessage(s.UserInfo, fullResponse.String(), string(s.Model), false, s.ProcessStep)
 	}
 	return Content{
 		Type:    OutputContent,
@@ -246,6 +250,7 @@ func (s StepFunChatCompletion) ChatCompletionStream() (Content, error) {
 					Content: reasoningContent,
 				}
 				reasoningResponse.WriteString(reasoningContent)
+				fmt.Print(reasoningContent)
 				jsonBody, _ := json.Marshal(formatContent)
 				writeSSEEvent(s.StreamWriter, s.Flusher, string(jsonBody))
 			}
@@ -257,7 +262,6 @@ func (s StepFunChatCompletion) ChatCompletionStream() (Content, error) {
 					Step:    s.ProcessStep,
 					Content: output,
 				}
-				log.Printf("format content: %+v\n", output)
 				jsonBody, _ := json.Marshal(formatContent)
 				writeSSEEvent(s.StreamWriter, s.Flusher, string(jsonBody))
 				fullResponse.WriteString(output)
@@ -266,10 +270,10 @@ func (s StepFunChatCompletion) ChatCompletionStream() (Content, error) {
 	}
 
 	if reasoningResponse.Len() > 0 {
-		err = insertAiMessage(s.UserInfo, reasoningResponse.String(), true, s.ProcessStep)
+		err = insertAiMessage(s.UserInfo, reasoningResponse.String(), string(s.Model), true, s.ProcessStep)
 	}
 	if fullResponse.Len() > 0 {
-		err = insertAiMessage(s.UserInfo, fullResponse.String(), false, s.ProcessStep)
+		err = insertAiMessage(s.UserInfo, fullResponse.String(), string(s.Model), false, s.ProcessStep)
 	}
 
 	return Content{

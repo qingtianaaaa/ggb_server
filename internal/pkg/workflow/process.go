@@ -57,7 +57,7 @@ func (p *Process) StartProcess(db *gorm.DB, message *model.Message) error {
 	}
 
 	rawRes, processedRes, err := p.Classify()
-	workflow1, err := p.insertWorkFlow(nil, nil, consts.IntentRecognition, message.Message, rawRes)
+	workflow1, err := p.insertWorkFlow(nil, nil, consts.IntentRecognition, message.Message, rawRes, false)
 	if err != nil {
 		return err
 	}
@@ -67,7 +67,7 @@ func (p *Process) StartProcess(db *gorm.DB, message *model.Message) error {
 		return err
 	}
 	input, _ := json.Marshal(processedRes)
-	workflow2, err := p.insertWorkFlow(&workflow1.ID, &workflow1.ID, consts.ExtractElement, string(input), elements)
+	workflow2, err := p.insertWorkFlow(&workflow1.ID, &workflow1.ID, consts.ExtractElement, string(input), elements, p.config.Extract.Skip)
 	if err != nil {
 		return err
 	}
@@ -76,13 +76,13 @@ func (p *Process) StartProcess(db *gorm.DB, message *model.Message) error {
 	if err != nil {
 		return err
 	}
-	workflow3, err := p.insertWorkFlow(&workflow1.ID, &workflow2.ID, consts.GenerateGGB, elements, commands)
+	workflow3, err := p.insertWorkFlow(&workflow1.ID, &workflow2.ID, consts.GenerateGGB, elements, commands, p.config.GenGGB.Skip)
 	if err != nil {
 		return err
 	}
 
 	html, err := p.GenerateHTML(commands)
-	_, err = p.insertWorkFlow(&workflow1.ID, &workflow3.ID, consts.GenerateHTML, elements, html)
+	_, err = p.insertWorkFlow(&workflow1.ID, &workflow3.ID, consts.GenerateHTML, elements, html, p.config.GenHTML.Skip)
 	return err
 }
 
@@ -100,7 +100,7 @@ func (p *Process) ExtractElementsStream(classifyRes map[string]string) (string, 
 
 func (p *Process) GenerateGGB(elements string) (string, error) {
 	if p.config.GenGGB.Skip {
-		return "", nil
+		return elements, nil
 	}
 	return p.doGenGGB(elements)
 }
@@ -204,6 +204,8 @@ func (p *Process) lookUpClassification(classify map[string]string) consts.Config
 		return consts.ConfigMapping[consts.Knowledge]
 	case string(consts.Other):
 		return consts.ConfigMapping[consts.Other]
+	case string(consts.CommonGGBPlot):
+		return consts.ConfigMapping[consts.CommonGGBPlot]
 	default:
 		return consts.ConfigMapping[consts.UnknownType]
 	}
@@ -365,7 +367,18 @@ func filterHTML(html string) string {
 	return htmlDoc
 }
 
-func (p *Process) insertWorkFlow(rootId, parentId *uint, workflowType consts.WorkFlowType, input, output string) (*model.Workflow, error) {
+func (p *Process) insertWorkFlow(rootId, parentId *uint, workflowType consts.WorkFlowType, input, output string, skip bool) (*model.Workflow, error) {
+	if skip {
+		tmp := uint(0)
+		if parentId == nil {
+			parentId = &tmp
+		}
+		return &model.Workflow{
+			Model: model.Model{
+				ID: *parentId,
+			},
+		}, nil
+	}
 	if p.userInfo == nil {
 		return nil, fmt.Errorf("userInfo is nil")
 	}

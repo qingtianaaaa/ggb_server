@@ -70,7 +70,7 @@ func NewChatCompletionClient[T ChatCompletionInterface](mapping map[string]strin
 	return instance
 }
 
-func insertAiMessage(userInfo *UserInfo, message string, isReason bool, processStep consts.ProcessStep) error {
+func insertAiMessage(userInfo *UserInfo, message, modelName string, isReason bool, processStep consts.ProcessStep) error {
 	if userInfo == nil {
 		return fmt.Errorf("userInfo is nil")
 	}
@@ -88,6 +88,7 @@ func insertAiMessage(userInfo *UserInfo, message string, isReason bool, processS
 		SessionID:     userInfo.SessionId,
 		UserMessageID: userInfo.UserMessageId,
 		UserID:        userInfo.UserId,
+		ModelName:     modelName,
 		Message:       message,
 		IsReason:      isReason,
 		Stage:         *stage,
