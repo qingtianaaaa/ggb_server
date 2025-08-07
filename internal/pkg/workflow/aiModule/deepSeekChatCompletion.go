@@ -55,7 +55,7 @@ func (g ChatCompletionClient) ChatCompletion() (Content, error) {
 		}, err
 	}
 	client := &http.Client{}
-	req, err := http.NewRequest(http.MethodPost, consts.DeepSeekTencentCloudChatCompletionUrl, bytes.NewBuffer(payload))
+	req, err := http.NewRequest(http.MethodPost, consts.DeepSeekChatCompletionUrl, bytes.NewBuffer(payload))
 	if err != nil {
 		log.Println("new request error:", err)
 		return Content{
@@ -150,7 +150,7 @@ func (g ChatCompletionClient) ChatCompletionStream() (Content, error) {
 		}, err
 	}
 
-	req, err := http.NewRequest(http.MethodPost, consts.DeepSeekTencentCloudChatCompletionUrl, bytes.NewBuffer(reqBody))
+	req, err := http.NewRequest(http.MethodPost, consts.DeepSeekChatCompletionUrl, bytes.NewBuffer(reqBody))
 	if err != nil {
 		log.Println("Error creating request: ", err)
 		return Content{

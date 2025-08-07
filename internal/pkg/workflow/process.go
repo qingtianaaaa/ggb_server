@@ -270,7 +270,7 @@ func (p *Process) doGenGGB(elements string) (string, error) {
 	reader.WriteString("数学元素: \n")
 	reader.WriteString(filtered)
 	mapping := map[string]string{
-		"model":                        string(consts.TencentDeepSeek),
+		"model":                        string(consts.DeepSeekChat),
 		"message":                      reader.String(),
 		strings.ToLower("processStep"): string(p.config.GenGGB.ProcessStep),
 	}
@@ -286,7 +286,7 @@ func (p *Process) doGenGGB(elements string) (string, error) {
 
 func (p *Process) doGenHTML(command string) (string, error) {
 	mapping := map[string]string{
-		"model":                        string(consts.TencentDeepSeek),
+		"model":                        string(consts.DeepSeekChat),
 		"message":                      command,
 		strings.ToLower("processStep"): string(p.config.GenHTML.ProcessStep),
 	}

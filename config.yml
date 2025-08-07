@@ -26,7 +26,7 @@ log:
 
 ai_model:
   deepseek:
-    apiKey: "sk-qKo22ROUL4WXXh1UzY7fPtGjUWBcluE1nxvRiJUNC9UfoBD3"  # "sk-9320e048d0d04f37a99eaa4d984bbe86"
+    apiKey: "sk-9320e048d0d04f37a99eaa4d984bbe86"  # sk-qKo22ROUL4WXXh1UzY7fPtGjUWBcluE1nxvRiJUNC9UfoBD3
   stepfun:
     apiKey: "4qNfUujEuOkN0WWP9TNHRDfedWM6KWVE8KnErfKRicGBfj9JWkKA4QYktcqLPr4Ch"
   doubao:
