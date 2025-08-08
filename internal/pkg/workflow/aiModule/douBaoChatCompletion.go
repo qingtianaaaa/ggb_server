@@ -23,6 +23,7 @@ type DouBaoChatCompletion struct {
 	Flusher      http.Flusher
 	StreamWriter io.Writer
 	ContentType  Type
+	ImgUrl       string
 
 	douBaoClient *arkruntime.Client
 	ThinkingType model.ThinkingType
@@ -54,8 +55,27 @@ func (d DouBaoChatCompletion) ChatCompletion() (Content, error) {
 			},
 		},
 		Thinking: &model.Thinking{
-			Type: model.ThinkingType(d.ThinkingType),
+			Type: d.ThinkingType,
 		},
+	}
+	if d.ImgUrl != "" {
+		req.Messages[0] = &model.ChatCompletionMessage{
+			Role: model.ChatMessageRoleSystem,
+			Content: &model.ChatCompletionMessageContent{
+				ListValue: []*model.ChatCompletionMessageContentPart{
+					{
+						Type: "image_url",
+						ImageURL: &model.ChatMessageImageURL{
+							URL: d.ImgUrl,
+						},
+					},
+					{
+						Type: "text",
+						Text: consts.ProcessStepMapping[d.ProcessStep],
+					},
+				},
+			},
+		}
 	}
 	ctx := d.Ctx
 	if ctx == nil {
@@ -102,6 +122,25 @@ func (d DouBaoChatCompletion) ChatCompletionStream() (Content, error) {
 				},
 			},
 		},
+	}
+	if d.ImgUrl != "" {
+		req.Messages[0] = &model.ChatCompletionMessage{
+			Role: model.ChatMessageRoleSystem,
+			Content: &model.ChatCompletionMessageContent{
+				ListValue: []*model.ChatCompletionMessageContentPart{
+					{
+						Type: "image_url",
+						ImageURL: &model.ChatMessageImageURL{
+							URL: d.ImgUrl,
+						},
+					},
+					{
+						Type: "text",
+						Text: consts.ProcessStepMapping[d.ProcessStep],
+					},
+				},
+			},
+		}
 	}
 
 	stream, err := d.douBaoClient.CreateChatCompletionStream(ctx, req)

@@ -116,6 +116,7 @@ func (s StepFunChatCompletion) ChatCompletion() (Content, error) {
 		}
 		jsonBody, _ := json.Marshal(formatContent)
 		fullResponse.WriteString(outputContent)
+		fmt.Print(outputContent)
 		writeSSEEvent(s.StreamWriter, s.Flusher, string(jsonBody)) //也以流式形式返回前端
 	}
 	if fullResponse.Len() > 0 {

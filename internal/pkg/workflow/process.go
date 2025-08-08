@@ -121,9 +121,10 @@ func (p *Process) doClassification() (string, map[string]string, error) {
 	imgUrl := p.ImgUrl
 	if imgUrl != "" && (strings.Contains(imgUrl, "localhost") || strings.Contains(imgUrl, "127.0.0.1")) {
 		imgPath := utils.ProcessUrl(imgUrl, config.Cfg.Static.Path)
+		p.ImgUrl = imgPath
 		file, err := os.Open(imgPath)
 		if err != nil {
-			log.Println("Error opening file error: ", err)
+			log.Println("Error opening file error1: ", err)
 			return "", nil, err
 		}
 		defer file.Close()
@@ -132,22 +133,23 @@ func (p *Process) doClassification() (string, map[string]string, error) {
 			log.Println("Error reading file error: ", err)
 			return "", nil, err
 		}
-		imgBase64 := fmt.Sprintf("data:image/%s;base64,%s", strings.ToLower(filepath.Ext(imgPath)), base64.StdEncoding.EncodeToString(fileContent))
+		imgBase64 := fmt.Sprintf("data:image/%s;base64,%s", strings.TrimPrefix(strings.ToLower(filepath.Ext(imgPath)), "."), base64.StdEncoding.EncodeToString(fileContent))
 		imgUrl = imgBase64
 	}
 
 	mapping := map[string]string{
-		"model":                        string(consts.StepFuncChat1oTurbo),
-		"message":                      p.UserMessage,
-		strings.ToLower("imgUrl"):      imgUrl,
-		strings.ToLower("processStep"): string(consts.Classify),
-		strings.ToLower("contentType"): string(consts.Classify),
+		"model":                         string(consts.StepFuncChat1oTurbo),
+		"message":                       p.UserMessage,
+		strings.ToLower("imgUrl"):       imgUrl,
+		strings.ToLower("processStep"):  string(consts.Classify),
+		strings.ToLower("contentType"):  string(consts.Classify),
+		strings.ToLower("thinkingType"): string(arkModel.ThinkingTypeEnabled),
 	}
 
 	client := aiModule.NewChatCompletionClient[*aiModule.StepFunChatCompletion](mapping, p.Flusher, p.W, p.userInfo)
 	res, err := client.ChatCompletion()
 	if err != nil {
-		log.Printf("type: %v, step: %v, content: %v\n", res.Type, res.Step, res.Content)
+		log.Println(err)
 		return "", nil, err
 	}
 	log.Println("\n[classify content]: ", res.Content)
@@ -219,11 +221,12 @@ func (p *Process) doExtract(classify map[string]string) (string, error) {
 		strings.ToLower("contentType"): string(aiModule.Reasoning),
 	}
 	if classify["类型"] == string(consts.G3D) {
-		if p.ImgUrl != "" {
-			imgUrl := p.ImgUrl
-			file, err := os.Open(imgUrl)
+		imgUrl := p.ImgUrl
+		if p.ImgUrl != "" && (strings.Contains(imgUrl, "localhost") || strings.Contains(imgUrl, "127.0.0.1")) {
+			url := utils.ProcessUrl(imgUrl, config.Cfg.Static.Path)
+			file, err := os.Open(url)
 			if err != nil {
-				log.Println("Error opening file error: ", err)
+				log.Println("Error opening file error2: ", err)
 				return "", err
 			}
 			defer file.Close()
@@ -233,16 +236,16 @@ func (p *Process) doExtract(classify map[string]string) (string, error) {
 				return "", err
 			}
 			imgBase64 := fmt.Sprintf("data:image/png;base64,%s", base64.StdEncoding.EncodeToString(fileContent))
-			mapping["imgUrl"] = imgBase64
+			imgUrl = imgBase64
 		}
 
 		mapping["model"] = string(consts.StepFuncChat1oTurbo)
-		mapping[strings.ToLower("thinkingType")] = string(arkModel.ThinkingTypeEnabled)
+		mapping[strings.ToLower("imgUrl")] = imgUrl
 		client := aiModule.NewChatCompletionClient[*aiModule.StepFunChatCompletion](mapping, p.Flusher, p.W, p.userInfo)
 
 		res, err := client.ChatCompletionStream()
 		if err != nil {
-			log.Printf("type: %v, step: %v, content: %v\n\n", res.Type, res.Step, res.Content)
+			log.Println("error occurred when extract: ", err)
 			return "", err
 		}
 		return res.Content, err
