@@ -88,7 +88,7 @@ func (a AiChat) Chat(c *gin.Context) {
 			Content: "暂时无法处理这类请求，请换一个问题",
 		}
 		data, _ := json.Marshal(content)
-		resData := "{\"data\"" + string(data) + "}"
+		resData := "{\"data\":" + string(data) + "}"
 		fmt.Fprintf(w, "data: %s\n\n", resData)
 		flusher.Flush()
 		log.Println("[error] occurred when processing: ", err)

@@ -141,7 +141,7 @@ func (p *Process) doClassification() (string, map[string]string, error) {
 		"message":                      p.UserMessage,
 		strings.ToLower("imgUrl"):      imgUrl,
 		strings.ToLower("processStep"): string(consts.Classify),
-		strings.ToLower("contentType"): string(aiModule.Classify),
+		strings.ToLower("contentType"): string(consts.Classify),
 	}
 
 	client := aiModule.NewChatCompletionClient[*aiModule.StepFunChatCompletion](mapping, p.Flusher, p.W, p.userInfo)
@@ -156,7 +156,7 @@ func (p *Process) doClassification() (string, map[string]string, error) {
 	if err != nil {
 		return "", nil, err
 	}
-	if classifyRes["类型"] == string(consts.Other) || classifyRes["类型"] == string(consts.Other) {
+	if classifyRes["类型"] == string(consts.Other) {
 		return "", nil, errors.New("classification result error")
 	}
 	return res.Content, classifyRes, nil
@@ -170,9 +170,7 @@ func (p *Process) seekForClassificationRes(content aiModule.Content) (map[string
 		return nil, errors.New("classification result error")
 	}
 	log.Println("match result: ", matches)
-
-	res := map[string]string{}
-	err := json.Unmarshal([]byte(matches), &res)
+	res, err := safeUnmarshalWithLatex(matches)
 	if err != nil {
 		log.Println("Error unmarshalling classification result error: ", err)
 		return nil, err
@@ -397,4 +395,18 @@ func (p *Process) insertWorkFlow(rootId, parentId *uint, workflowType consts.Wor
 	}
 	err := repository.NewWorkflowRepository[model.Workflow]().Create(p.userInfo.DB, workflow)
 	return workflow, err
+}
+
+func safeUnmarshalWithLatex(matches string) (map[string]string, error) {
+	re := regexp.MustCompile(`"([^"\\]*(\\.[^"\\]*)*)"`)
+
+	safeJSON := re.ReplaceAllStringFunc(matches, func(s string) string {
+		content := s[1 : len(s)-1]
+		content = strings.ReplaceAll(content, `\`, `\\`)
+		return `"` + content + `"`
+	})
+
+	res := map[string]string{}
+	err := json.Unmarshal([]byte(safeJSON), &res)
+	return res, err
 }
