@@ -87,9 +87,16 @@ func (d DouBaoChatCompletion) ChatCompletion() (Content, error) {
 	}
 	fullResponse := strings.Builder{}
 	if resp.Choices[0].Message.ReasoningContent != nil {
-		content := *resp.Choices[0].Message.ReasoningContent
+		content := *resp.Choices[0].Message.Content.StringValue
+		formatContent := Content{
+			Type:    OutputContent,
+			Step:    d.ProcessStep,
+			Content: content,
+		}
+		jsonBody, _ := json.Marshal(formatContent)
 		fullResponse.WriteString(content)
-		writeSSEEvent(d.StreamWriter, d.Flusher, content)
+		fmt.Println(content)
+		writeSSEEvent(d.StreamWriter, d.Flusher, string(jsonBody))
 	}
 	if fullResponse.Len() > 0 {
 		err = insertAiMessage(d.UserInfo, fullResponse.String(), string(d.Model), false, d.ProcessStep)

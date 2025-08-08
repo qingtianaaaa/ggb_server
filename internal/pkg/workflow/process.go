@@ -138,7 +138,7 @@ func (p *Process) doClassification() (string, map[string]string, error) {
 	}
 
 	mapping := map[string]string{
-		"model":                         string(consts.StepFuncChat1oTurbo),
+		"model":                         string(consts.DouBaoSeed1V6),
 		"message":                       p.UserMessage,
 		strings.ToLower("imgUrl"):       imgUrl,
 		strings.ToLower("processStep"):  string(consts.Classify),
@@ -146,7 +146,7 @@ func (p *Process) doClassification() (string, map[string]string, error) {
 		strings.ToLower("thinkingType"): string(arkModel.ThinkingTypeEnabled),
 	}
 
-	client := aiModule.NewChatCompletionClient[*aiModule.StepFunChatCompletion](mapping, p.Flusher, p.W, p.userInfo)
+	client := aiModule.NewChatCompletionClient[*aiModule.DouBaoChatCompletion](mapping, p.Flusher, p.W, p.userInfo)
 	res, err := client.ChatCompletion()
 	if err != nil {
 		log.Println(err)
@@ -239,16 +239,16 @@ func (p *Process) doExtract(classify map[string]string) (string, error) {
 			imgUrl = imgBase64
 		}
 
-		mapping["model"] = string(consts.StepFuncChat1oTurbo)
+		//mapping["model"] = string(consts.StepFuncChat1oTurbo)
 		mapping[strings.ToLower("imgUrl")] = imgUrl
-		client := aiModule.NewChatCompletionClient[*aiModule.StepFunChatCompletion](mapping, p.Flusher, p.W, p.userInfo)
+		/*		client := aiModule.NewChatCompletionClient[*aiModule.StepFunChatCompletion](mapping, p.Flusher, p.W, p.userInfo)
 
-		res, err := client.ChatCompletionStream()
-		if err != nil {
-			log.Println("error occurred when extract: ", err)
-			return "", err
-		}
-		return res.Content, err
+				res, err := client.ChatCompletionStream()
+				if err != nil {
+					log.Println("error occurred when extract: ", err)
+					return "", err
+				}
+				return res.Content, err*/
 	}
 
 	mapping[strings.ToLower("thinkingType")] = string(arkModel.ThinkingTypeEnabled)
