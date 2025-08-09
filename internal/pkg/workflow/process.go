@@ -72,17 +72,19 @@ func (p *Process) StartProcess(db *gorm.DB, message *model.Message) error {
 		return err
 	}
 
-	commands, err := p.GenerateGGB(elements)
+	filterEle := filterElements(elements)
+	commands, err := p.GenerateGGB(filterEle)
 	if err != nil {
 		return err
 	}
-	workflow3, err := p.insertWorkFlow(&workflow1.ID, &workflow2.ID, consts.GenerateGGB, elements, commands, p.config.GenGGB.Skip)
+	workflow3, err := p.insertWorkFlow(&workflow1.ID, &workflow2.ID, consts.GenerateGGB, filterEle, commands, p.config.GenGGB.Skip)
 	if err != nil {
 		return err
 	}
 
-	html, err := p.GenerateHTML(commands)
-	_, err = p.insertWorkFlow(&workflow1.ID, &workflow3.ID, consts.GenerateHTML, elements, html, p.config.GenHTML.Skip)
+	filterCmd := filterCommands(commands)
+	html, err := p.GenerateHTML(filterCmd)
+	_, err = p.insertWorkFlow(&workflow1.ID, &workflow3.ID, consts.GenerateHTML, filterCmd, html, p.config.GenHTML.Skip)
 	return err
 }
 
@@ -106,11 +108,10 @@ func (p *Process) GenerateGGB(elements string) (string, error) {
 }
 
 func (p *Process) GenerateHTML(command string) (string, error) {
-	filter := filterCommands(command)
 	if p.config.GenHTML.Skip {
-		return filter, nil
+		return command, nil
 	}
-	res, err := p.doGenHTML(filter)
+	res, err := p.doGenHTML(command)
 	if err != nil {
 		return "", err
 	}
@@ -266,10 +267,9 @@ func (p *Process) doExtract(classify map[string]string) (string, error) {
 }
 
 func (p *Process) doGenGGB(elements string) (string, error) {
-	filtered := filterElements(elements)
 	reader := strings.Builder{}
 	reader.WriteString("数学元素: \n")
-	reader.WriteString(filtered)
+	reader.WriteString(elements)
 	mapping := map[string]string{
 		"model":                        string(consts.DeepSeekChat),
 		"message":                      reader.String(),

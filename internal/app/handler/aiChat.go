@@ -55,6 +55,8 @@ func (a AiChat) Chat(c *gin.Context) {
 		return
 	}
 
+	log.Printf("chatRequest: %+v", chatRequest)
+
 	user, err := GetUserFromContext(c)
 	if err != nil {
 		c.JSON(400, gin.H{

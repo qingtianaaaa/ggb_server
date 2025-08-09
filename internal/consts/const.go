@@ -259,7 +259,7 @@ const (
    - 隐藏辅助元素显式定义后设置隐藏（如‘SetVisibleInView(aux_point, false)’）
 </需求>
 <输出格式>
-<element_content>
+<element_contents>
 ### 1. **函数**
    - **主函数**：‘f(x) = e^x + x + a’
      - 该函数表示曲线 \( y = e^{x} + x + a \)，其中 \( a \) 是一个参数（在 GeoGebra 中需创建滑块，例如：‘a = Slider(-10, 10, 1)）。
@@ -270,9 +270,9 @@ const (
        - 该函数是主函数 \( f(x) \) 的导数（用于辅助理解切线条件，但在题目中未显式给出，故定义为辅助函数并隐藏）。
      - 'P = (0, 5)'  
        - 该点是当 \( a = 4 \) 时的切点（根据题目条件计算得出，但作为辅助元素定义并隐藏）。
-<element_content>
+</element_contents>
 ### GeoGebra 指令
-<ggb_content>
+<ggb_contents>
 - **创建参数滑块**：  
   'a = Slider(-10, 10, 1)'
   （设置参数 \( a \) 的初始值范围，例如从 -10 到 10，步长 1）
@@ -290,7 +290,7 @@ const (
   'P = Point({0, 5})'              // 定义切点 (0, 5)  
   'SetVisibleInView(P, 1, false)'   // 在图形视图中隐藏该点  
   'SetLabel(P, "tangency_point")'   // 可选：设置标签便于识别
-<ggb_content>
+</ggb_contents>
 </输出格式>`
 
 	GeoExtractSystemPrompt = `<身份>
@@ -555,7 +555,8 @@ var parameters = {"appName": "classic", "width": "600", "height": "500", "shocon
 
 <限制条件>
 重置图表使用window.ggbApp.reset()
-每个元素对应一个按钮，点击按钮后，图形出现或消失
+每个元素对应一个按钮，点击按钮后，图形出现或消失，用<details>标签将每种元素的按钮板块折叠
+页面初始化时使用ggbApp.setVisible()隐藏一部分元素，保证可视化界面的整洁
 如果有需要动态调整的部分使用滑动条控制，并确保滑动条变化时图像可以实时变化
 初始化参数中不要使用materialid， filename，base64
 不要设置全局变量ggbApp，只在appletOnLoad 中设置 window.ggbApp = api，后续都使用ggbApp操作Geogebra 的 API
@@ -597,7 +598,8 @@ var parameters = {"appName": "classic", "width": "600", "height": "500", "shocon
 
 <限制条件>
 重置图表使用window.ggbApp.reset()
-每个元素对应一个按钮，点击按钮后，图形出现或消失
+每个元素对应一个按钮，点击按钮后，图形出现或消失，用<details>标签将每种元素的按钮板块折叠
+页面初始化时使用ggbApp.setVisible()隐藏一部分元素，保证可视化界面的整洁
 如果有需要动态调整的部分使用滑动条控制，并确保滑动条变化时图像可以实时变化
 初始化参数中不要使用materialid， filename，base64
 不要设置全局变量ggbApp，只在appletOnLoad 中设置 window.ggbApp = api，后续都使用ggbApp操作Geogebra 的 API
