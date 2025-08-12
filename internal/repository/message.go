@@ -10,6 +10,7 @@ type MessageRepository[T any] interface {
 	GetBySessionID(db *gorm.DB, sessionID uint) ([]model.Message, error)
 	GetLastMessage(db *gorm.DB, sessionID uint) (*model.Message, error)
 	BatchCreate(db *gorm.DB, messages []model.Message) error
+	GetAiMessage(db *gorm.DB) ([]model.Message, error)
 }
 
 type MessageRepo[T any] struct {
@@ -46,4 +47,10 @@ func (r *MessageRepo[T]) GetLastMessage(db *gorm.DB, sessionID uint) (*model.Mes
 
 func (r *MessageRepo[T]) BatchCreate(db *gorm.DB, messages []model.Message) error {
 	return db.CreateInBatches(messages, 100).Error
+}
+
+func (r *MessageRepo[T]) GetAiMessage(db *gorm.DB) ([]model.Message, error) {
+	var messages []model.Message
+	err := db.Preload("AiMessages").Preload("Resources").Find(&messages).Error
+	return messages, err
 }
